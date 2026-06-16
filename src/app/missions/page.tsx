@@ -114,17 +114,17 @@ function MissionCard({ hunt, done, locked, profile, index }: {
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: done ? 'rgba(255,255,255,.08)' : `linear-gradient(90deg,${cat.color},${cat.color}00)` }} />
         {/* status badge */}
         {done && (
-          <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(5,8,22,.75)', border: `1px solid ${ACCENT}40`, borderRadius: 999, padding: '3px 9px', backdropFilter: 'blur(8px)' }}>
+          <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(5,8,22,.88)', border: `1px solid ${ACCENT}40`, borderRadius: 999, padding: '3px 9px' }}>
             <CheckCircle2 size={9} strokeWidth={2.5} style={{ color: ACCENT }} /><span style={{ fontSize: 9.5, fontWeight: 700, color: ACCENT }}>Completed</span>
           </div>
         )}
         {locked && (
-          <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(5,8,22,.75)', border: `1px solid ${AI_CLR}40`, borderRadius: 999, padding: '3px 9px', backdropFilter: 'blur(8px)' }}>
+          <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(5,8,22,.88)', border: `1px solid ${AI_CLR}40`, borderRadius: 999, padding: '3px 9px' }}>
             <Sparkles size={9} strokeWidth={2.5} style={{ color: AI_CLR }} /><span style={{ fontSize: 9.5, fontWeight: 700, color: AI_CLR }}>Premium</span>
           </div>
         )}
         {ms != null && !done && !locked && (
-          <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(5,8,22,.75)', border: `1px solid ${msColor}40`, borderRadius: 999, padding: '3px 9px', backdropFilter: 'blur(8px)' }}>
+          <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(5,8,22,.88)', border: `1px solid ${msColor}40`, borderRadius: 999, padding: '3px 9px' }}>
             <TrendingUp size={9} strokeWidth={2.5} style={{ color: msColor }} /><span style={{ fontSize: 9.5, fontWeight: 800, color: msColor }}>{ms}% match</span>
           </div>
         )}
@@ -288,7 +288,8 @@ export default function MissionsPage() {
 
   useEffect(() => {
     const state = loadState();
-    if (!state.user?.onboardingComplete) { router.replace('/'); return; }
+    // PREVIEW MODE: onboarding gate bypassed — re-enable before production launch
+    // if (!state.user?.onboardingComplete) { router.replace('/'); return; }
     setIds(state.completedHunts.map((h) => h.huntId));
     setStreak(state.streak);
     setHunts(state.hunts);
@@ -304,7 +305,7 @@ export default function MissionsPage() {
 
   if (!mounted) return null;
 
-  const canPremium   = subStatus?.canAccessPremiumMissions ?? false;
+  const canPremium   = true; // PREVIEW MODE: unlocked — re-enable subscription check before production
   const activeHunts  = hunts.filter((h) => !completedIds.includes(h.id));
   const doneHunts    = hunts.filter((h) =>  completedIds.includes(h.id));
   const filtered     = tab === 'Active' ? activeHunts : tab === 'Completed' ? doneHunts : tab === 'Applied' ? [] : hunts;
@@ -321,7 +322,7 @@ export default function MissionsPage() {
 
   return (
     <div className="consumer-app" style={{ minHeight: '100vh', paddingBottom: 100, background: BG, color: TXT }}>
-      <div style={{ maxWidth: 430, margin: '0 auto' }}>
+      <div style={{ maxWidth: 680, margin: '0 auto' }}>
 
         {/* ── HEADER ── */}
         <div style={{ padding: '56px 20px 0' }}>

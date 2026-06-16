@@ -78,7 +78,8 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const state = loadState();
-    if (!state.user?.onboardingComplete) { router.replace('/'); return; }
+    // PREVIEW MODE: onboarding gate bypassed — re-enable before production launch
+    // if (!state.user?.onboardingComplete) { router.replace('/'); return; }
     setInterests(state.user?.interests ?? []);
     setCompleted(state.completedHunts);
     setStreak(state.streak);
@@ -155,7 +156,7 @@ export default function ProfilePage() {
 
   return (
     <div className="consumer-app" style={{ minHeight: '100vh', paddingBottom: 100, background: BG, color: TXT }}>
-      <div style={{ maxWidth: 430, margin: '0 auto' }}>
+      <div style={{ maxWidth: 680, margin: '0 auto' }}>
 
         {/* ── Hero ── */}
         <div style={{

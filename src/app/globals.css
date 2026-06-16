@@ -395,6 +395,64 @@ body {
   border-bottom-color: rgba(255,255,255,0.07) !important;
 }
 
+/* ─── Light mode: marketing page overrides ────────────────────────────────── */
+/* Marketing pages use hardcoded dark hex values (intentional dark brand design).
+   These overrides map the most common Tailwind-generated classes to light-mode
+   tokens so typography and backgrounds remain accessible when theme=light. */
+
+:root[data-theme="light"] .text-\[\#F0F4FF\] { color: var(--t-txt) !important; }
+:root[data-theme="light"] .text-\[\#8B9CC0\] { color: var(--t-dim) !important; }
+:root[data-theme="light"] .text-\[\#4A5578\] { color: var(--t-faint) !important; }
+
+/* Section backgrounds */
+:root[data-theme="light"] section[style*="#050816"],
+:root[data-theme="light"] div[style*="background: '#050816'"],
+:root[data-theme="light"] div[style*="background:'#050816'"] {
+  background-color: #F0F4FF !important;
+}
+
+/* Card backgrounds → white in light mode */
+:root[data-theme="light"] div[style*="#0A1226"],
+:root[data-theme="light"] div[style*="#07101F"] {
+  background-color: #FFFFFF !important;
+}
+
+/* Trust / How-it-works section borders in light mode */
+:root[data-theme="light"] .border-\[rgba\(255\,255\,255\,\.05\)\] {
+  border-color: rgba(0,0,0,0.07) !important;
+}
+:root[data-theme="light"] .border-\[rgba\(255\,255\,255\,\.06\)\] {
+  border-color: rgba(0,0,0,0.09) !important;
+}
+:root[data-theme="light"] .border-\[rgba\(255\,255\,255\,\.08\)\] {
+  border-color: rgba(0,0,0,0.11) !important;
+}
+
+/* Nav + Footer backgrounds in light mode */
+:root[data-theme="light"] header.liquid-nav,
+:root[data-theme="light"] .liquid-nav {
+  background: rgba(255,255,255,0.92) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+/* Nav link text in light mode */
+:root[data-theme="light"] .text-txt-dim { color: var(--t-dim) !important; }
+:root[data-theme="light"] .text-txt     { color: var(--t-txt) !important; }
+:root[data-theme="light"] .text-txt-faint { color: var(--t-faint) !important; }
+
+/* Proof strip background */
+:root[data-theme="light"] div[style*="background: '#07101F'"],
+:root[data-theme="light"] div[style*="background:'#07101F'"] {
+  background-color: var(--t-surface) !important;
+}
+
+/* ─── Light mode: improved contrast tokens ─── */
+/* Improve dim text contrast on light backgrounds (WCAG AA: 4.5:1) */
+:root[data-theme="light"] {
+  --t-dim:   #3A4666;  /* was #4A5578 — darkened for AA contrast on white */
+  --t-faint: #6B7A9E;  /* was #8B9CC0 — darkened for readability */
+}
+
 /* Marketing pages — keep intentional dark design in light mode */
 :root[data-theme="light"] .marketing-section-dark {
   background-color: #050816;

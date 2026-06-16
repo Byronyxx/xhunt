@@ -145,26 +145,15 @@ export default function Nav() {
         {/* CTA */}
         <div className="hidden lg:flex items-center gap-2">
           <ThemeToggle />
-          <Show when="signed-out">
-            <SignInButton mode="redirect">
-              <button className="px-4 py-2 text-sm font-medium text-txt-dim hover:text-txt transition-colors">
-                Sign in
-              </button>
-            </SignInButton>
-            <Link href="/sign-up"
-              className="flex items-center gap-1.5 px-4 py-2 bg-accent text-[#050816] rounded-lg text-sm font-bold shadow-[0_0_18px_rgba(34,255,170,0.28)] hover:shadow-[0_0_24px_rgba(34,255,170,0.45)] hover:bg-accent-dark transition-all duration-200">
-              Start Exploring
-              <ArrowRight size={13} strokeWidth={2.8} />
-            </Link>
-          </Show>
-          <Show when="signed-in">
-            <Link href="/home"
-              className="flex items-center gap-1.5 px-4 py-2 bg-accent/10 text-accent border border-accent/20 rounded-lg text-sm font-bold hover:bg-accent/15 transition-all duration-200">
-              Open App
-              <ArrowRight size={13} strokeWidth={2.8} />
-            </Link>
-            <UserButton />
-          </Show>
+          <Link href="/sign-in"
+            className="px-4 py-2 text-sm font-medium text-txt-dim hover:text-txt transition-colors">
+            Sign in
+          </Link>
+          <Link href="/home"
+            className="flex items-center gap-1.5 px-4 py-2 bg-accent text-[#050816] rounded-lg text-sm font-bold shadow-[0_0_18px_rgba(34,255,170,0.28)] hover:shadow-[0_0_24px_rgba(34,255,170,0.45)] hover:bg-accent-dark transition-all duration-200">
+            Start Exploring
+            <ArrowRight size={13} strokeWidth={2.8} />
+          </Link>
         </div>
 
         {/* Mobile controls */}
@@ -208,7 +197,7 @@ export default function Nav() {
                 <ArrowRight size={13} strokeWidth={2.5} className="text-[#6D5DFD] ml-auto" />
               </Link>
               <Link href="/sign-in" className="px-3 py-2.5 text-sm font-medium text-txt-dim">Sign in</Link>
-              <Link href="/sign-up" className="flex items-center justify-center gap-2 h-12 bg-accent text-[#050816] rounded-xl text-sm font-bold mt-1 shadow-[0_4px_20px_rgba(34,255,170,0.35)]">
+              <Link href="/home" className="flex items-center justify-center gap-2 h-12 bg-accent text-[#050816] rounded-xl text-sm font-bold mt-1 shadow-[0_4px_20px_rgba(34,255,170,0.35)]">
                 Start Exploring
                 <ArrowRight size={14} strokeWidth={2.8} />
               </Link>

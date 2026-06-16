@@ -193,16 +193,12 @@ export function GlassButton({
 // Use this for the outermost div when you can't restructure HTML.
 // It provides the glass look without pseudo-element layers.
 export const LIQUID_GLASS_STYLE: React.CSSProperties = {
-  background: 'rgba(7, 16, 31, 0.55)',
-  backdropFilter: 'blur(20px) saturate(180%)',
-  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-  border: '1px solid rgba(255, 255, 255, 0.10)',
+  background: 'rgba(10, 18, 38, 0.90)',
+  border: '1px solid rgba(255, 255, 255, 0.09)',
   boxShadow: [
-    '0 6px 6px rgba(0, 0, 0, 0.25)',
-    '0 0 20px rgba(0, 0, 0, 0.12)',
-    '0 0 60px rgba(34, 255, 170, 0.05)',
-    'inset 2px 2px 1px rgba(255, 255, 255, 0.14)',
-    'inset -1px -1px 1px rgba(255, 255, 255, 0.06)',
+    '0 4px 16px rgba(0, 0, 0, 0.3)',
+    '0 0 0 0.5px rgba(255, 255, 255, 0.05)',
+    'inset 0 1px 0 rgba(255, 255, 255, 0.08)',
   ].join(', '),
 };
 

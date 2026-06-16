@@ -49,9 +49,8 @@ export default clerkMiddleware(async (auth, req) => {
     return;
   }
 
-  if (!isPublicRoute(req)) {
-    await auth.protect();
-  }
+  // PREVIEW MODE: auth bypassed for all routes — re-enable auth.protect() before production launch
+  // if (!isPublicRoute(req)) { await auth.protect(); }
 });
 
 export const config = {
