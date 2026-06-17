@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Users, Target, Building2, Plus, Search, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useConversations } from '@/hooks/useMessages';
+import { useAuth } from '@/lib/auth/context';
 import { LIQUID_GLASS_STYLE } from '@/components/LiquidGlass';
 import type { ConversationWithDetails } from '@/lib/supabase/types';
 
@@ -149,15 +150,12 @@ function ConversationItem({
 export default function ConversationList() {
   const router   = useRouter();
   const pathname = usePathname();
-  const [userId, setUserId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const userId   = user?.id ?? null;
   const [query,  setQuery]  = useState('');
   const [showNewDM, setShowNewDM] = useState(false);
 
   const { conversations, loading } = useConversations(userId);
-
-  useEffect(() => {
-    createClient().auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
-  }, []);
 
   const activeId = pathname.startsWith('/messages/') ? pathname.split('/')[2] : null;
 

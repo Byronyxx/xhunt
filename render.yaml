@@ -1,0 +1,37 @@
+services:
+  # Python FastAPI auth + worker service
+  # Service ID: srv-d8pekhtckfvc73cuf99g
+  - type: web
+    name: xhunt-auth
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: oregon
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      # ── Supabase ───────────────────────────────────────────────────────────
+      - key: SUPABASE_URL
+        value: https://dwiferekcfaqxcgkyacw.supabase.co
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false          # set in Render dashboard
+      # ── Auth / JWT ─────────────────────────────────────────────────────────
+      # MUST equal: Supabase Dashboard → Settings → API → JWT Settings → JWT Secret
+      - key: JWT_SECRET
+        sync: false          # set in Render dashboard
+      # ── CORS ───────────────────────────────────────────────────────────────
+      - key: ALLOWED_ORIGINS
+        value: https://xhunt.app,https://xhunt-fsm2.onrender.com
+      # ── App URL (for worker email callbacks) ───────────────────────────────
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://xhunt.app
+      - key: CRON_SECRET
+        sync: false          # set in Render dashboard — same value as Vercel
+      # ── AI providers ───────────────────────────────────────────────────────
+      - key: GROQ_API_KEY
+        sync: false
+      # ── Celery / Redis ─────────────────────────────────────────────────────
+      - key: REDIS_URL
+        sync: false          # set in Render dashboard (Upstash or Render Redis)

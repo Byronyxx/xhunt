@@ -1,9 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useClerk } from '@clerk/nextjs';
+import { useAuth } from '@/lib/auth/context';
 import {
   LayoutDashboard, Users, Settings, Building2, ShieldCheck,
 } from 'lucide-react';
@@ -34,7 +33,7 @@ interface Props {
 
 export default function AdminSidebar({ isOpen = false, onClose }: Props) {
   const pathname = usePathname();
-  const { signOut } = useClerk();
+  const { signOut } = useAuth();
 
   return (
     <>

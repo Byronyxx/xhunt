@@ -9,7 +9,9 @@ import {
   ArrowRight, ChevronRight, Shield, CheckCircle2,
   Clock, Award, Wallet, Users, Camera, MapPin,
   Zap, Star, TrendingUp, BarChart3,
+  Dumbbell, UtensilsCrossed, Trees, Laptop,
 } from 'lucide-react';
+import { Radar, IconContainer } from '@/components/ui/radar';
 import OnboardingSplash from '@/components/OnboardingSplash';
 
 /* ─── animation helpers ─── */
@@ -707,10 +709,10 @@ export default function RootPage() {
               <motion.div
                 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.46 }}
                 className="flex flex-wrap gap-3">
-                <button onClick={openSplash}
-                  className="flex items-center gap-2.5 h-13 px-7 bg-[#22FFAA] text-[#050816] rounded-xl text-[15px] font-bold shadow-[0_0_28px_rgba(34,255,170,0.3)] hover:shadow-[0_0_44px_rgba(34,255,170,0.5)] transition-all duration-200 cursor-pointer border-none">
+                <Link href="/home"
+                  className="flex items-center gap-2.5 h-13 px-7 bg-[#22FFAA] text-[#050816] rounded-xl text-[15px] font-bold shadow-[0_0_28px_rgba(34,255,170,0.3)] hover:shadow-[0_0_44px_rgba(34,255,170,0.5)] transition-all duration-200">
                   Find a mission now <ArrowRight size={16} strokeWidth={2.8} />
-                </button>
+                </Link>
                 <Link href="/missions"
                   className="flex items-center gap-2.5 h-13 px-6 border text-[#8B9CC0] rounded-xl text-[15px] font-semibold hover:text-[#F0F4FF] transition-all duration-200"
                   style={{ background: 'rgba(255,255,255,.04)', borderColor: 'rgba(255,255,255,.09)' }}>
@@ -800,224 +802,70 @@ export default function RootPage() {
         </div>
       </Sec>
 
-      {/* ─── LIVE MISSIONS ─── */}
-      <Sec className="py-24 lg:py-32">
+      {/* ─── NEARBY GIGS ─── */}
+      <Sec className="py-28 lg:py-36 border-y border-[rgba(255,255,255,0.05)]" style={{ background: '#050816' }}>
         <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
+          <div className="grid lg:grid-cols-2 gap-14 lg:gap-20 items-center">
             <div>
-              <motion.p variants={fadeUp} className="text-[11px] font-bold text-[#4A5578] uppercase tracking-widest mb-3">Open right now</motion.p>
-              <motion.h2 variants={fadeUp} custom={0.06} className="text-[clamp(1.9rem,3.5vw,2.8rem)] font-black text-[#F0F4FF] leading-tight tracking-tight">
-                Missions you could start today.
-                <br /><span className="text-[#8B9CC0] text-[clamp(1rem,2vw,1.4rem)] font-semibold">All with pre-funded escrow.</span>
-              </motion.h2>
-            </div>
-            <motion.div variants={fadeUp} custom={0.1}>
-              <Link href="/missions" className="flex items-center gap-2 text-[13px] font-semibold text-[#22FFAA] hover:opacity-80 transition-opacity">
-                Browse all open missions <ChevronRight size={14} strokeWidth={2.5} />
-              </Link>
-            </motion.div>
-          </div>
-          <div className="grid md:grid-cols-2 gap-4 lg:gap-5">
-            {SAMPLE_MISSIONS.map((m, i) => <MissionCard key={m.title} m={m} index={i} />)}
-          </div>
-          <motion.div variants={fadeUp} custom={0.5} className="flex flex-wrap items-center gap-6 mt-8 pt-8" style={{ borderTop: '1px solid rgba(255,255,255,.05)' }}>
-            {[
-              { icon: Shield, label: 'Reward money is locked in escrow before you start' },
-              { icon: CheckCircle2, label: 'AI checks every submission before releasing payment' },
-              { icon: Award, label: 'Your track record is public and builds over time' },
-            ].map(({ icon: Icon, label }) => (
-              <div key={label} className="flex items-center gap-2.5 text-[12px] text-[#8B9CC0]">
-                <Icon size={13} strokeWidth={2} className="text-[#4A5578] flex-shrink-0" />{label}
-              </div>
-            ))}
-          </motion.div>
-        </div>
-      </Sec>
-
-      {/* ─── HUNTER TIERS ─── */}
-      <Sec className="py-24 lg:py-32 border-y border-[rgba(255,255,255,.05)]" style={{ background: '#050816' }}>
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <motion.p variants={fadeUp} className="text-[11px] font-bold text-[#4A5578] uppercase tracking-widest mb-3">Your reputation matters here</motion.p>
-            <motion.h2 variants={fadeUp} custom={0.06} className="text-[clamp(1.9rem,3.5vw,2.8rem)] font-black text-[#F0F4FF] leading-tight tracking-tight mb-4">
-              Every mission makes the
-              <br />next one worth more.
-            </motion.h2>
-            <motion.p variants={fadeUp} custom={0.12} className="text-[14px] text-[#8B9CC0] max-w-[480px] mx-auto">
-              Your Hunter Score is your reputation — built from real completions, not self-reported claims. The better your track record, the bigger the gigs you unlock.
-            </motion.p>
-          </div>
-          <div className="flex flex-col gap-3 max-w-4xl mx-auto">
-            {TIERS.map((tier, i) => (
-              <motion.div key={tier.tier} variants={fadeUp} custom={i * 0.08}
-                className="grid grid-cols-1 md:grid-cols-[180px_1fr_160px] gap-4 items-center p-5 rounded-2xl border transition-all hover:border-[rgba(255,255,255,.1)] cursor-default"
-                style={{ background: tier.bg, borderColor: tier.border }}>
-                <div>
-                  <p className="text-[14px] font-bold mb-0.5" style={{ color: tier.color }}>{tier.tier}</p>
-                  <p className="text-[11px] font-mono text-[#4A5578]">{tier.range}</p>
-                </div>
-                <p className="text-[13px] text-[#8B9CC0] leading-relaxed">{tier.desc}</p>
-                <div className="text-right md:text-center">
-                  <p className="text-[11px] text-[#4A5578] mb-0.5">Average earnings</p>
-                  <p className="text-[16px] font-black" style={{ color: tier.color }}>{tier.earnings}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-          <motion.p variants={fadeUp} custom={0.4} className="text-center text-[12px] text-[#4A5578] mt-6">
-            Starts at zero. No cap. Score recalculates after every completed mission.
-          </motion.p>
-        </div>
-      </Sec>
-
-      {/* ─── MEI SECTION ─── */}
-      <Sec className="py-24 lg:py-32" style={{ background: '#07101F' }}>
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-14 lg:gap-20 items-start">
-            {/* Left: conversational copy */}
-            <div>
-              <motion.p variants={fadeUp} className="text-[11px] font-bold text-[#4A5578] uppercase tracking-widest mb-4">
-                For brands & mission creators
+              <motion.p variants={fadeUp} className="text-[11px] font-bold text-[#4A5578] uppercase tracking-widest mb-3">
+                Work near you, right now
               </motion.p>
               <motion.h2 variants={fadeUp} custom={0.06}
                 className="text-[clamp(1.9rem,3.5vw,2.8rem)] font-black text-[#F0F4FF] leading-tight tracking-tight mb-5">
-                Did your mission
+                The app brings paid gigs
                 <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#22FFAA] to-[#6D5DFD]">
-                  actually work?
+                  to wherever you are.
                 </span>
               </motion.h2>
-              <motion.p variants={fadeUp} custom={0.1} className="text-[15px] text-[#8B9CC0] leading-relaxed mb-5">
-                Most marketing platforms tell you how many people saw your thing. X-Hunt tells you something more honest:{' '}
-                <strong className="text-[#F0F4FF]">did anyone actually do it?</strong>
+              <motion.p variants={fadeUp} custom={0.12}
+                className="text-[14px] text-[#8B9CC0] leading-relaxed mb-8">
+                X-Hunt uses your location to surface paid missions nearby — right now, in your city. Going to the gym? There&apos;s probably a fitness brand paying for that. Exploring a neighbourhood? A tourism brand might want your photos. You don&apos;t find the work. The work finds you.
               </motion.p>
-              <motion.p variants={fadeUp} custom={0.14} className="text-[14px] text-[#8B9CC0] leading-relaxed mb-5">
-                The{' '}
-                <span className="text-[#22FFAA] font-bold">Mission Effectiveness Index (MEI)</span>{' '}
-                is the score your mission gets after it runs. It&apos;s calculated automatically
-                from real behavioral data — not clicks, not views, not engagement rates. Think of it as your campaign&apos;s
-                GPA for real-world outcomes.
-              </motion.p>
-              <motion.p variants={fadeUp} custom={0.18} className="text-[14px] text-[#8B9CC0] leading-relaxed mb-8">
-                A score above{' '}
-                <span className="text-[#22FFAA] font-semibold">7.0</span>{' '}
-                means your mission resonated — hunters completed it, their proof was authentic, and their behavior matched
-                what you were hoping to create. Below{' '}
-                <span className="text-[#FFB84D] font-semibold">5.0</span>?{' '}
-                The index tells you exactly which signal broke down so you can fix it — not just that it underperformed.
-              </motion.p>
-              <motion.div variants={fadeUp} custom={0.22}>
-                <Link href="/enterprise"
-                  className="inline-flex items-center gap-2.5 h-12 px-6 rounded-xl text-[14px] font-bold transition-all"
-                  style={{ background: 'rgba(34,255,170,.08)', border: '1px solid rgba(34,255,170,.2)', color: '#22FFAA' }}>
-                  See it in Mission Control <ArrowRight size={14} strokeWidth={2.8} />
-                </Link>
-              </motion.div>
-            </div>
-
-            {/* Right: MEI score breakdown */}
-            <div className="flex flex-col gap-4">
-              {/* MEI score card */}
-              <motion.div variants={fadeUp} custom={0.08}
-                className="rounded-2xl p-6 border"
-                style={{ background: '#0A1226', borderColor: 'rgba(34,255,170,.12)' }}>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-[11px] font-bold text-[#4A5578] uppercase tracking-wider">Mission Effectiveness Index</p>
-                    <p className="text-[13px] text-[#8B9CC0] mt-0.5">FitLife Pro · 7-Day Workout Challenge</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[40px] font-black leading-none" style={{ color: '#22FFAA' }}>8.4</p>
-                    <p className="text-[10px] text-[#4A5578] mt-0.5">out of 10</p>
-                  </div>
-                </div>
-                <div className="h-2 rounded-full mb-1" style={{ background: 'rgba(255,255,255,.06)' }}>
-                  <div className="h-full rounded-full" style={{ width: '84%', background: 'linear-gradient(90deg, #22FFAA, #6D5DFD)', boxShadow: '0 0 12px rgba(34,255,170,.4)' }} />
-                </div>
-                <p className="text-[10px] text-[#4A5578] italic">Top 12% of fitness missions this month</p>
-              </motion.div>
-
-              {/* Four signals */}
-              {[
-                {
-                  label: 'Completion Rate', value: 91, color: '#22FFAA',
-                  desc: 'Of hunters who accepted, this many finished all 7 days.',
-                },
-                {
-                  label: 'Evidence Quality', value: 87, color: '#6D5DFD',
-                  desc: 'AI scored the photos, GPS data, and timestamps as credible.',
-                },
-                {
-                  label: 'Behavioral Consistency', value: 82, color: '#a78bfa',
-                  desc: 'Hunters maintained daily momentum — not just a last-day rush.',
-                },
-                {
-                  label: 'Outcome Alignment', value: 94, color: '#FFB84D',
-                  desc: 'Submissions matched the intended experience — gym context, active evidence.',
-                },
-              ].map((sig, i) => (
-                <motion.div key={sig.label} variants={fadeUp} custom={0.14 + i * 0.06}
-                  className="p-4 rounded-xl border flex items-start gap-4"
-                  style={{ background: 'rgba(255,255,255,.02)', borderColor: 'rgba(255,255,255,.06)' }}>
-                  <div className="flex-shrink-0 mt-0.5">
-                    <BarChart3 size={15} strokeWidth={2} style={{ color: sig.color }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-[12px] font-bold text-[#F0F4FF]">{sig.label}</p>
-                      <span className="text-[12px] font-black tabular-nums" style={{ color: sig.color }}>{sig.value}%</span>
-                    </div>
-                    <div className="h-1.5 rounded-full mb-2" style={{ background: 'rgba(255,255,255,.05)' }}>
-                      <div className="h-full rounded-full transition-all" style={{ width: `${sig.value}%`, background: sig.color, opacity: 0.7 }} />
-                    </div>
-                    <p className="text-[11px] text-[#4A5578] leading-relaxed">{sig.desc}</p>
-                  </div>
-                </motion.div>
-              ))}
-
-              <motion.p variants={fadeUp} custom={0.42} className="text-[11px] text-[#4A5578] italic px-1">
-                MEI recalculates in real time as submissions come in. Run two missions and compare — your second brief gets smarter.
-              </motion.p>
-            </div>
-          </div>
-        </div>
-      </Sec>
-
-      {/* ─── SOCIAL LAYER ─── */}
-      <Sec className="py-24 lg:py-32">
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-14 items-center">
-            <div>
-              <motion.p variants={fadeUp} className="text-[11px] font-bold text-[#4A5578] uppercase tracking-widest mb-4">The social feed</motion.p>
-              <motion.h2 variants={fadeUp} custom={0.06} className="text-[clamp(1.7rem,3.2vw,2.6rem)] font-black text-[#F0F4FF] leading-tight tracking-tight mb-5">
-                Your achievements are public.
-                <br />That&apos;s the point.
-              </motion.h2>
-              <motion.p variants={fadeUp} custom={0.12} className="text-[14px] text-[#8B9CC0] leading-relaxed mb-8">
-                Every mission you complete posts to your public timeline. Brands scroll through it to find hunters to work with.
-                The better your track record, the more inbound gigs you get. Your gym selfie is your portfolio.
-              </motion.p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-3">
                 {[
-                  { icon: '📸', title: 'Completion posts', desc: 'Auto-posted when AI validates your mission' },
-                  { icon: '📡', title: 'Go live', desc: 'Stream your mission in real time. Viewers follow your progress.' },
-                  { icon: '🔥', title: 'Reactions', desc: 'Community sees real verified achievements, not ads' },
-                  { icon: '👀', title: 'Brand scouting', desc: 'Scouts browse top hunter profiles actively' },
-                ].map((item, i) => (
-                  <motion.div key={item.title} variants={fadeUp} custom={0.18 + i * 0.07}
-                    className="p-4 rounded-xl border"
+                  { icon: MapPin, title: 'GPS confirms you were actually there', body: 'Every location-based mission validates your presence — no faking it, no disputes.' },
+                  { icon: Zap, title: 'New gigs appear as you move', body: 'As you go about your day, relevant paid opportunities surface based on where you are right now.' },
+                  { icon: Shield, title: 'Works even with bad signal', body: 'Mission clues and checkpoints cache locally so your work isn\'t interrupted in the field.' },
+                ].map((f, i) => (
+                  <motion.div key={f.title} variants={fadeUp} custom={0.18 + i * 0.07}
+                    className="flex items-start gap-4 p-4 rounded-xl border"
                     style={{ background: 'rgba(255,255,255,.02)', borderColor: 'rgba(255,255,255,.06)' }}>
-                    <span className="text-[18px] mb-2 block">{item.icon}</span>
-                    <p className="text-[13px] font-bold text-[#F0F4FF] mb-1">{item.title}</p>
-                    <p className="text-[11px] text-[#8B9CC0] leading-relaxed">{item.desc}</p>
+                    <f.icon size={16} strokeWidth={1.8} className="flex-shrink-0 mt-0.5" style={{ color: '#22FFAA' }} />
+                    <div>
+                      <p className="text-[13px] font-bold text-[#F0F4FF] mb-1">{f.title}</p>
+                      <p className="text-[12px] text-[#8B9CC0] leading-relaxed">{f.body}</p>
+                    </div>
                   </motion.div>
                 ))}
               </div>
             </div>
-            <motion.div variants={fadeUp} custom={0.2} className="relative">
-              <div className="absolute inset-0 rounded-3xl blur-3xl scale-105 -z-10"
-                style={{ background: 'radial-gradient(ellipse, rgba(109,93,253,.06) 0%, transparent 70%)' }} />
-              <TimelineFeed />
+
+            {/* Radar visualisation */}
+            <motion.div variants={fadeUp} custom={0.16}
+              className="relative flex items-center justify-center"
+              style={{ minHeight: 480 }}>
+              <div className="absolute inset-0 pointer-events-none"
+                style={{ background: 'radial-gradient(ellipse 60% 60% at 50% 50%, rgba(34,255,170,0.07) 0%, transparent 70%)' }} />
+              <div className="absolute top-[12%] left-[8%] z-50">
+                <IconContainer icon={<Dumbbell size={20} strokeWidth={1.8} className="text-[#22FFAA]" />} text="Fitness" delay={0.3} />
+              </div>
+              <div className="absolute top-[10%] right-[10%] z-50">
+                <IconContainer icon={<UtensilsCrossed size={20} strokeWidth={1.8} className="text-[#FFB84D]" />} text="Food" delay={0.5} />
+              </div>
+              <div className="absolute top-[42%] left-[2%] z-50">
+                <IconContainer icon={<Trees size={20} strokeWidth={1.8} className="text-[#6D5DFD]" />} text="Outdoors" delay={0.7} />
+              </div>
+              <div className="absolute top-[40%] right-[2%] z-50">
+                <IconContainer icon={<Laptop size={20} strokeWidth={1.8} className="text-[#a78bfa]" />} text="Tech" delay={0.9} />
+              </div>
+              <div className="absolute bottom-[12%] left-[10%] z-50">
+                <IconContainer icon={<MapPin size={20} strokeWidth={1.8} className="text-[#22FFAA]" />} text="Explore" delay={1.1} />
+              </div>
+              <div className="absolute bottom-[10%] right-[8%] z-50">
+                <IconContainer icon={<Zap size={20} strokeWidth={1.8} className="text-[#FFB84D]" />} text="Quick Gig" delay={1.3} />
+              </div>
+              <Radar className="h-[380px] w-[380px]" />
             </motion.div>
           </div>
         </div>
@@ -1062,7 +910,7 @@ export default function RootPage() {
           <div className="absolute top-1/2 right-0 -translate-y-1/2 w-[500px] h-[500px] bg-[#22FFAA]/4 blur-[120px] rounded-full" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#050816] via-[#050816]/80 to-transparent" />
         </div>
-        <div className="relative z-10 max-w-3xl mx-auto px-5 sm:px-6 lg:px-8 text-center lg:text-left">
+        <div className="relative z-10 max-w-3xl mx-auto px-5 sm:px-6 lg:px-8 text-left">
           <motion.p variants={fadeUp} className="text-[11px] font-bold text-[#4A5578] uppercase tracking-widest mb-5">Ready to start?</motion.p>
           <motion.h2 variants={fadeUp} custom={0.07}
             className="text-[clamp(2.2rem,5vw,3.8rem)] font-black text-[#F0F4FF] leading-[1.04] tracking-tighter mb-5">
@@ -1076,11 +924,11 @@ export default function RootPage() {
           <motion.p variants={fadeUp} custom={0.2} className="text-[12px] text-[#4A5578] mb-10">
             Free to join · No credit card · First mission generated in under 15 seconds
           </motion.p>
-          <motion.div variants={fadeUp} custom={0.26} className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-            <button onClick={openSplash}
-              className="flex items-center justify-center gap-2.5 h-13 px-8 bg-[#22FFAA] text-[#050816] rounded-xl text-[15px] font-bold shadow-[0_0_32px_rgba(34,255,170,0.3)] hover:shadow-[0_0_48px_rgba(34,255,170,0.5)] transition-all cursor-pointer border-none">
+          <motion.div variants={fadeUp} custom={0.26} className="flex flex-col sm:flex-row gap-3 justify-start">
+            <Link href="/home"
+              className="flex items-center justify-center gap-2.5 h-13 px-8 bg-[#22FFAA] text-[#050816] rounded-xl text-[15px] font-bold shadow-[0_0_32px_rgba(34,255,170,0.3)] hover:shadow-[0_0_48px_rgba(34,255,170,0.5)] transition-all">
               Start hunting free <ArrowRight size={16} strokeWidth={2.8} />
-            </button>
+            </Link>
             <Link href="/enterprise"
               className="flex items-center justify-center gap-2.5 h-13 px-7 border text-[#8B9CC0] rounded-xl text-[15px] font-semibold hover:text-[#F0F4FF] transition-all"
               style={{ background: 'rgba(255,255,255,.04)', borderColor: 'rgba(255,255,255,.09)' }}>

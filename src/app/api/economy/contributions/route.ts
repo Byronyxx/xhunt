@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getSession } from '@/lib/auth/server';
 import { createClient } from '@/lib/supabase/server';
 import {
   recordContribution,
@@ -12,8 +12,8 @@ import {
 
 // GET /api/economy/contributions?userId=&limit=&offset=&summary=true
 export async function GET(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const url = new URL(req.url);
   const targetUserId = url.searchParams.get('userId');
@@ -24,13 +24,13 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
 
-    // Resolve profile id from clerk id if not provided
+    // Resolve profile id from session if not provided
     let profileId = targetUserId;
     if (!profileId) {
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('id')
-        .eq('clerk_user_id', clerkId)
+        .eq('id', session!.sub)
         .single();
       if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
       profileId = profile.id;
@@ -51,8 +51,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/economy/contributions
 export async function POST(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const body = await req.json();
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id, tenant_id')
-      .eq('clerk_user_id', clerkId)
+      .eq('id', session!.sub)
       .single();
 
     if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
@@ -107,8 +107,8 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/economy/contributions (validate a contribution)
 export async function PATCH(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const body = await req.json();
@@ -122,7 +122,7 @@ export async function PATCH(req: NextRequest) {
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id')
-      .eq('clerk_user_id', clerkId)
+      .eq('id', session!.sub)
       .single();
 
     if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });

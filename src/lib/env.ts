@@ -7,17 +7,18 @@ const serverSchema = z.object({
   STRIPE_SECRET_KEY:          z.string().min(1),
   STRIPE_WEBHOOK_SECRET:      z.string().min(1),
   STRIPE_PRO_PRICE_ID:        z.string().min(1),
-  CLERK_SECRET_KEY:           z.string().min(1),
-  CLERK_WEBHOOK_SECRET:       z.string().optional(),
+  JWT_SECRET:                 z.string().min(32),
+  NEXT_PUBLIC_AUTH_URL:       z.string().url(),
+  RESEND_API_KEY:             z.string().optional(),
+  EMAIL_FROM:                 z.string().optional(),
 });
 
 const publicSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL:           z.string().url(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY:      z.string().min(1),
-  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:  z.string().min(1),
+  NEXT_PUBLIC_SUPABASE_URL:      z.string().url(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  NEXT_PUBLIC_AUTH_URL:          z.string().url(),
 });
 
-// Typed accessor — camelCase aliases kept for backward compatibility
 export const env = {
   groqApiKey:             process.env.GROQ_API_KEY ?? '',
   anthropicApiKey:        process.env.ANTHROPIC_API_KEY ?? '',
@@ -25,14 +26,13 @@ export const env = {
   stripeWebhookSecret:    process.env.STRIPE_WEBHOOK_SECRET ?? '',
   stripeProPriceId:       process.env.STRIPE_PRO_PRICE_ID ?? '',
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
-  clerkSecretKey:         process.env.CLERK_SECRET_KEY ?? '',
-  clerkWebhookSecret:     process.env.CLERK_WEBHOOK_SECRET ?? '',
+  jwtSecret:              process.env.JWT_SECRET ?? 'change-this-to-a-long-random-secret-at-least-64-chars',
 } as const;
 
 export const publicEnv = {
-  supabaseUrl:       process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
-  supabaseAnonKey:   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
-  clerkPublishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '',
+  supabaseUrl:     process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+  supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+  authUrl:         process.env.NEXT_PUBLIC_AUTH_URL ?? 'http://localhost:8000',
 } as const;
 
 export function assertProductionEnv(): void {

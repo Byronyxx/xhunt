@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getSession } from '@/lib/auth/server';
 import { createClient } from '@/lib/supabase/server';
 import { recordGovernanceAction } from '@/lib/economy/match';
 
@@ -7,8 +7,8 @@ const ADMIN_ROLES = new Set(['platform_admin', 'tenant_admin']);
 
 // GET /api/economy/governance?limit=50&actionType=ranking_override
 export async function GET(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const url = new URL(req.url);
   const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
@@ -39,15 +39,15 @@ export async function GET(req: NextRequest) {
 
 // POST /api/economy/governance  — record a governance action (admin only)
 export async function POST(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const supabase = await createClient();
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id, role')
-      .eq('clerk_user_id', clerkId)
+      .eq('id', session!.sub)
       .single();
 
     if (!profile || !ADMIN_ROLES.has(profile.role)) {
@@ -87,8 +87,8 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/economy/governance/:id  — mark action as reversed
 export async function PATCH(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const body = await req.json();
@@ -99,7 +99,7 @@ export async function PATCH(req: NextRequest) {
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id, role')
-      .eq('clerk_user_id', clerkId)
+      .eq('id', session!.sub)
       .single();
 
     if (!profile || !ADMIN_ROLES.has(profile.role)) {
