@@ -10,7 +10,7 @@ const COOKIE = '__xhunt_session';
 export interface SessionPayload {
   sub: string;
   email: string;
-  role: string;
+  role: string;    // app role (platform_admin, explorer, etc.)
   surface: string;
 }
 
@@ -21,12 +21,16 @@ export async function getSession(req: NextRequest): Promise<SessionPayload | nul
   if (!token) return null;
 
   try {
-    const { payload } = await jwtVerify(token, SECRET, { algorithms: ['HS256'] });
+    const { payload } = await jwtVerify(token, SECRET, {
+      algorithms: ['HS256'],
+    });
     if (payload['type'] !== 'access') return null;
     return {
       sub: payload.sub as string,
       email: payload['email'] as string,
-      role: payload['role'] as string,
+      // Python backend stores app role in 'app_role' to avoid colliding with
+      // Supabase's 'role' claim (which must be 'authenticated')
+      role: (payload['app_role'] ?? payload['role']) as string,
       surface: payload['surface'] as string,
     };
   } catch {

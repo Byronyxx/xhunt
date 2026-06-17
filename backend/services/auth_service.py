@@ -27,11 +27,27 @@ def _make_token(payload: dict[str, Any], expire_delta: timedelta) -> str:
 
 
 def create_access_token(user_id: str, email: str, role: str, surface: str) -> tuple[str, int]:
+    """
+    Issue a Supabase-compatible JWT.
+    Supabase RLS reads auth.uid() from the 'sub' claim and auth.role() from 'role'.
+    Including 'aud=authenticated' and 'role=authenticated' makes Supabase treat
+    this token as an authenticated session so RLS policies work correctly.
+    """
     expires = timedelta(minutes=settings.access_token_expire_minutes)
-    token = _make_token(
-        {'sub': user_id, 'email': email, 'role': role, 'surface': surface, 'type': 'access'},
-        expires,
-    )
+    exp = datetime.now(timezone.utc) + expires
+    payload = {
+        'sub': user_id,           # auth.uid() = user_profile.id (UUID)
+        'aud': 'authenticated',   # required by Supabase
+        'role': 'authenticated',  # enables RLS authenticated role
+        'email': email,
+        # Custom claims (ignored by Supabase RLS but used by our app)
+        'app_role': role,
+        'surface': surface,
+        'type': 'access',
+        'exp': exp,
+        'iat': datetime.now(timezone.utc),
+    }
+    token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
     return token, settings.access_token_expire_minutes * 60
 
 
@@ -42,6 +58,12 @@ def create_refresh_token(user_id: str) -> str:
 
 def decode_token(token: str) -> dict[str, Any]:
     try:
-        return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        return jwt.decode(
+            token,
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
+            # Supabase uses 'authenticated' as the audience for user tokens
+            options={'verify_aud': False},
+        )
     except JWTError as e:
         raise ValueError(f'Invalid token: {e}') from e

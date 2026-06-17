@@ -48,8 +48,7 @@ export default function HomePage() {
 
   useEffect(() => {
     const state = loadState();
-    // PREVIEW MODE: onboarding gate bypassed — re-enable before production launch
-    // if (!state.user?.onboardingComplete) { router.replace('/'); return; }
+    if (!state.user?.onboardingComplete) { router.replace('/get-started'); return; }
     const completed = state.completedHunts.map(h => h.huntId);
     setIds(completed);
     setStreak(state.streak);

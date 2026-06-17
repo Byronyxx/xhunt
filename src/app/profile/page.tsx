@@ -78,8 +78,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const state = loadState();
-    // PREVIEW MODE: onboarding gate bypassed — re-enable before production launch
-    // if (!state.user?.onboardingComplete) { router.replace('/'); return; }
+    if (!state.user?.onboardingComplete) { router.replace('/get-started'); return; }
     setInterests(state.user?.interests ?? []);
     setCompleted(state.completedHunts);
     setStreak(state.streak);

@@ -9,6 +9,8 @@ const serverSchema = z.object({
   STRIPE_PRO_PRICE_ID:        z.string().min(1),
   JWT_SECRET:                 z.string().min(32),
   NEXT_PUBLIC_AUTH_URL:       z.string().url(),
+  RESEND_API_KEY:             z.string().optional(),
+  EMAIL_FROM:                 z.string().optional(),
 });
 
 const publicSchema = z.object({

@@ -14,13 +14,15 @@ const PUBLIC_PATTERNS = [
   /^\/get-started/, /^\/marketplace/, /^\/mission-control/,
   /^\/pricing/, /^\/privacy/, /^\/security/, /^\/terms/, /^\/use-cases/,
   /^\/sign-in/, /^\/sign-up/,
-  /^\/api\/contact/, /^\/api\/cron/, /^\/api\/stripe\/webhook/,
-  // Consumer app pages are public for preview — re-add auth when ready
-  /^\/home/, /^\/explore/, /^\/missions/, /^\/messages/, /^\/profile/,
+  /^\/api\/auth/, /^\/api\/contact/, /^\/api\/cron/, /^\/api\/stripe\/webhook/,
 ];
 
 const AUTH_PAGE_PATTERNS = [/^\/sign-in/, /^\/sign-up/];
-const PROTECTED_PATTERNS = [/^\/workspace/, /^\/admin/];
+const PROTECTED_PATTERNS = [
+  /^\/workspace/, /^\/admin/,
+  /^\/home/, /^\/explore/, /^\/missions/, /^\/messages/, /^\/profile/,
+  /^\/hunt/, /^\/active/, /^\/complete/, /^\/live/, /^\/people/, /^\/rewards/,
+];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATTERNS.some((p) => p.test(pathname));
@@ -67,7 +69,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
     // Enforce role access for admin
-    if (pathname.startsWith('/admin') && session['role'] !== 'platform_admin') {
+    if (pathname.startsWith('/admin') && (session['app_role'] ?? session['role']) !== 'platform_admin') {
       return NextResponse.redirect(new URL('/home', req.url));
     }
   }
@@ -76,7 +78,7 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   if (session) {
     res.headers.set('x-user-id', session['sub'] as string);
-    res.headers.set('x-user-role', session['role'] as string);
+    res.headers.set('x-user-role', (session['app_role'] ?? session['role']) as string);
   }
   return res;
 }

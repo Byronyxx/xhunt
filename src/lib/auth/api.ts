@@ -1,7 +1,5 @@
 import type { AuthUser } from './types';
 
-const BACKEND = process.env.NEXT_PUBLIC_AUTH_URL ?? 'http://localhost:8000';
-
 interface LoginPayload { email: string; password: string }
 interface RegisterPayload { email: string; password: string; display_name?: string }
 
@@ -27,11 +25,13 @@ function mapUser(u: AuthResponse['user']): AuthUser {
   };
 }
 
+// All calls go through Next.js API routes (/api/auth/*) so cookies
+// are set on the same origin — no cross-domain cookie issues.
+
 export async function apiLogin(payload: LoginPayload): Promise<AuthUser> {
-  const res = await fetch(`${BACKEND}/auth/login`, {
+  const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -43,10 +43,9 @@ export async function apiLogin(payload: LoginPayload): Promise<AuthUser> {
 }
 
 export async function apiRegister(payload: RegisterPayload): Promise<AuthUser> {
-  const res = await fetch(`${BACKEND}/auth/register`, {
+  const res = await fetch('/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -59,10 +58,7 @@ export async function apiRegister(payload: RegisterPayload): Promise<AuthUser> {
 
 export async function apiMe(): Promise<AuthUser | null> {
   try {
-    const res = await fetch(`${BACKEND}/auth/me`, {
-      credentials: 'include',
-      cache: 'no-store',
-    });
+    const res = await fetch('/api/auth/me', { cache: 'no-store' });
     if (!res.ok) return null;
     const data = await res.json();
     return mapUser(data);
@@ -72,10 +68,7 @@ export async function apiMe(): Promise<AuthUser | null> {
 }
 
 export async function apiLogout(): Promise<void> {
-  await fetch(`${BACKEND}/auth/logout`, {
-    method: 'POST',
-    credentials: 'include',
-  }).catch(() => {});
+  await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
 }
 
 export async function apiUpdateProfile(updates: {
@@ -83,6 +76,7 @@ export async function apiUpdateProfile(updates: {
   avatar_url?: string;
   default_surface?: string;
 }): Promise<AuthUser> {
+  const BACKEND = process.env.NEXT_PUBLIC_AUTH_URL ?? 'http://localhost:8000';
   const res = await fetch(`${BACKEND}/users/me`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },

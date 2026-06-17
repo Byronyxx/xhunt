@@ -15,11 +15,11 @@ const cspDirectives = [
   // WebGL shader compilation needs it at runtime.
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : " 'unsafe-eval'"} https://js.stripe.com`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://prod.spline.design https://images.unsplash.com https://img.clerk.com",
+  "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://prod.spline.design https://images.unsplash.com",
   "font-src 'self'",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://api.groq.com https://api.stripe.com https://prod.spline.design https://*.clerk.com https://*.clerk.dev https://*.accounts.dev https://nominatim.openstreetmap.org",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://api.groq.com https://api.stripe.com https://prod.spline.design https://nominatim.openstreetmap.org",
   "worker-src blob: 'self'",
-  "frame-src https://js.stripe.com https://hooks.stripe.com https://*.clerk.com https://*.clerk.dev https://*.accounts.dev",
+  "frame-src https://js.stripe.com https://hooks.stripe.com",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",
@@ -32,7 +32,6 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
       { protocol: 'https', hostname: '*.supabase.in' },
-      { protocol: 'https', hostname: 'img.clerk.com' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
   },

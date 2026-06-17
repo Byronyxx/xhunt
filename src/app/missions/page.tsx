@@ -288,8 +288,7 @@ export default function MissionsPage() {
 
   useEffect(() => {
     const state = loadState();
-    // PREVIEW MODE: onboarding gate bypassed — re-enable before production launch
-    // if (!state.user?.onboardingComplete) { router.replace('/'); return; }
+    if (!state.user?.onboardingComplete) { router.replace('/get-started'); return; }
     setIds(state.completedHunts.map((h) => h.huntId));
     setStreak(state.streak);
     setHunts(state.hunts);
@@ -305,7 +304,7 @@ export default function MissionsPage() {
 
   if (!mounted) return null;
 
-  const canPremium   = true; // PREVIEW MODE: unlocked — re-enable subscription check before production
+  const canPremium   = subStatus?.canAccessPremiumMissions ?? false;
   const activeHunts  = hunts.filter((h) => !completedIds.includes(h.id));
   const doneHunts    = hunts.filter((h) =>  completedIds.includes(h.id));
   const filtered     = tab === 'Active' ? activeHunts : tab === 'Completed' ? doneHunts : tab === 'Applied' ? [] : hunts;
