@@ -14,9 +14,17 @@ class Settings(BaseSettings):
 
     redis_url: str = 'redis://localhost:6379/0'
 
-    allowed_origins: str = 'http://localhost:3000,https://xhunt.app'
+    allowed_origins: str = 'http://localhost:3000,https://xhunt.app,https://xhunt-fsm2.onrender.com'
 
     app_env: str = 'development'
+
+    # URL of the deployed Next.js app — used by workers to call back internal endpoints
+    next_public_app_url: str = 'https://xhunt.app'
+
+    # Shared secret for internal cron/worker → Next.js API calls
+    cron_secret: str = ''
+
+    groq_api_key: str = ''
 
     @property
     def cors_origins(self) -> list[str]:

@@ -6,7 +6,6 @@ Celery background worker for X-Hunt async tasks:
 - Reward distribution
 - Notification dispatch
 """
-import os
 import math
 from datetime import datetime, timezone
 from celery import Celery
@@ -111,7 +110,7 @@ def verify_evidence(submission_id: str, evidence_urls: list[str]) -> dict:
 
     submission = submission_resp.data[0]
 
-    groq_key = os.environ.get('GROQ_API_KEY', '')
+    groq_key = settings.groq_api_key if hasattr(settings, 'groq_api_key') else ''
     verified = False
     confidence = 0.0
     flags: list[str] = []
@@ -323,11 +322,10 @@ def send_notification(user_id: str, notification_type: str, payload: dict) -> di
         user_resp = db.table('user_profiles').select('email, display_name').eq('id', user_id).execute()
         if user_resp.data and user_resp.data[0].get('email'):
             user = user_resp.data[0]
-            app_url = os.environ.get('NEXT_PUBLIC_APP_URL', 'https://xhunt.app')
             try:
                 httpx.post(
-                    f'{app_url}/api/notifications/email',
-                    headers={'x-cron-secret': os.environ.get('CRON_SECRET', '')},
+                    f'{settings.next_public_app_url}/api/notifications/email',
+                    headers={'x-cron-secret': settings.cron_secret},
                     json={
                         'to': user['email'],
                         'template': email_template,
