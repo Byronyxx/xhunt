@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, ChevronDown, ArrowRight, Sun, Moon } from 'lucide-react';
-import { Show, SignInButton, UserButton } from '@clerk/nextjs';
 import { cn } from '@/lib/cn';
 import Logo from '@/components/Logo';
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useClerk } from '@clerk/nextjs';
+import { useAuth } from '@/lib/auth/context';
 import {
   LayoutDashboard, Layers, Radar, TrendingUp,
   BarChart3, Bot, Cpu,
@@ -88,7 +88,7 @@ interface Props {
 
 export default function WorkspaceSidebar({ orgName, plan, userName, userRole, avatarUrl, isOpen = false, onClose }: Props) {
   const pathname = usePathname();
-  const { signOut } = useClerk();
+  const { signOut } = useAuth();
   const badge = PLAN_BADGE[plan] ?? PLAN_BADGE.starter;
   const [config, setConfig] = useState<TenantFeatureConfig>(getDefaultConfig(plan));
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');

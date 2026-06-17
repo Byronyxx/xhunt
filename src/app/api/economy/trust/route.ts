@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getSession } from '@/lib/auth/server';
 import { createClient } from '@/lib/supabase/server';
 import {
   recordTrustEvent,
@@ -12,8 +12,8 @@ import {
 
 // GET /api/economy/trust?userId=&graph=true&dimension=skill&minScore=60
 export async function GET(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const url = new URL(req.url);
   const targetUserId = url.searchParams.get('userId');
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('id')
-        .eq('clerk_user_id', clerkId)
+        .eq('id', session!.sub)
         .single();
       if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
       profileId = profile.id;
@@ -50,8 +50,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/economy/trust  — record a trust event
 export async function POST(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const body = await req.json();
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id')
-      .eq('clerk_user_id', clerkId)
+      .eq('id', session!.sub)
       .single();
 
     if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
@@ -91,8 +91,8 @@ export async function POST(req: NextRequest) {
 
 // PUT /api/economy/trust  — add a cross-platform trust anchor
 export async function PUT(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const body = await req.json();
@@ -106,7 +106,7 @@ export async function PUT(req: NextRequest) {
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id')
-      .eq('clerk_user_id', clerkId)
+      .eq('id', session!.sub)
       .single();
 
     if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });

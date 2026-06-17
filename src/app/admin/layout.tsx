@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@/lib/auth/context';
 import { Menu, X } from 'lucide-react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { createClient } from '@/lib/supabase/client';
@@ -10,15 +10,15 @@ import { createClient } from '@/lib/supabase/client';
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
+  const { user, isLoaded } = useAuth();
   const [authorized, setAuthorized] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   useEffect(() => {
-    if (!clerkLoaded) return;
-    if (!clerkUser) { router.replace('/sign-in?redirect_url=/admin'); return; }
+    if (!isLoaded) return;
+    if (!user) { router.replace('/sign-in?redirect_url=/admin'); return; }
 
     async function checkAccess() {
       const supabase = createClient();
@@ -26,16 +26,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('role, tenant_id, onboarding_complete')
-        .eq('clerk_user_id', clerkUser!.id)
+        .eq('id', user!.id)
         .single();
 
       if (!profile?.tenant_id || !profile?.onboarding_complete) {
-        router.replace('/onboard');
+        router.replace('/get-started');
         return;
       }
 
-      const adminRoles = ['platform_admin', 'tenant_admin', 'mission_creator', 'analyst'];
-      if (!adminRoles.includes(profile.role)) {
+      if (profile.role !== 'platform_admin') {
         router.replace('/home');
         return;
       }
@@ -43,7 +42,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       setAuthorized(true);
     }
     checkAccess();
-  }, [clerkLoaded, clerkUser, router]);
+  }, [isLoaded, user, router]);
 
   if (!authorized) {
     return (

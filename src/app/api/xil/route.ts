@@ -10,15 +10,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getSession } from '@/lib/auth/server';
 import { createClient } from '@/lib/supabase/server';
 import { orchestrate, type IntelligenceFunction } from '@/lib/xil/orchestrator';
 import { getAgentRegistry } from '@/lib/xil/constitution';
 
 // GET /api/xil  — transparency endpoint: registered agents + recent health metrics
 export async function GET(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const supabase = await createClient();
@@ -92,8 +92,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/xil  — invoke XIL intelligence orchestration
 export async function POST(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 503 });
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id, role')
-      .eq('clerk_user_id', clerkId)
+      .eq('id', session!.sub)
       .single();
 
     // Governance and Foundry functions require admin role

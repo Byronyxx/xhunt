@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@/lib/auth/context';
 import { Menu, X } from 'lucide-react';
 import WorkspaceSidebar from '@/components/workspace/WorkspaceSidebar';
 import { createClient } from '@/lib/supabase/client';
@@ -18,24 +18,23 @@ interface WorkspaceUser {
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
-  const [user, setUser] = useState<WorkspaceUser | null>(null);
+  const { user, isLoaded } = useAuth();
+  const [workspaceUser, setWorkspaceUser] = useState<WorkspaceUser | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   useEffect(() => {
-    if (!clerkLoaded) return;
-    if (!clerkUser) { router.replace('/sign-in?redirect_url=/workspace'); return; }
+    if (!isLoaded) return;
+    if (!user) { router.replace('/sign-in?redirect_url=/workspace'); return; }
 
     async function boot() {
       const supabase = createClient();
 
-      // Look up profile by Clerk user ID (migration 027 added clerk_user_id column)
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('role, tenant_id, display_name, avatar_url, onboarding_complete')
-        .eq('clerk_user_id', clerkUser!.id)
+        .eq('id', user!.id)
         .single();
 
       if (!profile?.tenant_id || !profile?.onboarding_complete) {
@@ -55,7 +54,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         .eq('id', profile.tenant_id)
         .single();
 
-      setUser({
+      setWorkspaceUser({
         orgName:  tenant?.name ?? 'Your Organization',
         plan:     tenant?.plan ?? 'starter',
         userName: profile.display_name,
@@ -64,9 +63,9 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       });
     }
     boot();
-  }, [clerkLoaded, clerkUser, router]);
+  }, [isLoaded, user, router]);
 
-  if (!user) {
+  if (!workspaceUser) {
     return (
       <div className="min-h-screen bg-[#050816] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -80,11 +79,11 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   return (
     <div className="portal-shell">
       <WorkspaceSidebar
-        orgName={user.orgName}
-        plan={user.plan}
-        userName={user.userName}
-        userRole={user.userRole}
-        avatarUrl={user.avatarUrl}
+        orgName={workspaceUser.orgName}
+        plan={workspaceUser.plan}
+        userName={workspaceUser.userName}
+        userRole={workspaceUser.userRole}
+        avatarUrl={workspaceUser.avatarUrl}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

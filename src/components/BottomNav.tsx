@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useUser, useClerk } from '@clerk/nextjs';
+import { useAuth } from '@/lib/auth/context';
 import {
   Home, Compass, Target, MessageSquare, User,
   LogOut, Sun, Moon,
@@ -42,10 +42,8 @@ function ThemeToggleBtn() {
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const { user } = useUser();
-  const { signOut } = useClerk();
-  // Pass null until clerk_user_id mapping is live in DB — badge degrades gracefully
-  const totalUnread = useTotalUnread(null);
+  const { user, signOut } = useAuth();
+  const totalUnread = useTotalUnread(user?.id ?? null);
 
   return (
     <>
@@ -144,22 +142,22 @@ export default function BottomNav() {
         <div style={{ padding: '12px 10px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
           {user && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 8, borderRadius: 12, background: 'rgba(255,255,255,0.04)' }}>
-              {user.imageUrl ? (
+              {user.avatarUrl ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={user.imageUrl} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                <img src={user.avatarUrl} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
               ) : (
                 <div style={{ width: 32, height: 32, borderRadius: '50%', background: `${t.accent}26`, border: `1px solid ${t.accent}4D`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: t.accent }}>
-                    {(user.firstName?.[0] ?? user.emailAddresses?.[0]?.emailAddress?.[0] ?? 'U').toUpperCase()}
+                    {(user.displayName?.[0] ?? user.email?.[0] ?? 'U').toUpperCase()}
                   </span>
                 </div>
               )}
               <div style={{ minWidth: 0, flex: 1 }}>
                 <p style={{ fontSize: 13, fontWeight: 600, color: t.txt, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {user.firstName ?? user.emailAddresses?.[0]?.emailAddress?.split('@')[0] ?? 'Explorer'}
+                  {user.displayName ?? user.email?.split('@')[0] ?? 'Explorer'}
                 </p>
                 <p style={{ fontSize: 11, color: t.txtFaint, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {user.emailAddresses?.[0]?.emailAddress ?? ''}
+                  {user.email ?? ''}
                 </p>
               </div>
             </div>
