@@ -7,7 +7,8 @@ function getResend(): Resend | null {
   return _resend;
 }
 
-const FROM = process.env.EMAIL_FROM ?? 'X-Hunt <noreply@xhunt.app>';
+// Use onboarding@resend.dev until xhunt.app domain is verified in Resend dashboard
+const FROM = process.env.EMAIL_FROM ?? 'onboarding@resend.dev';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://xhunt.app';
 
 export type EmailTemplate =
