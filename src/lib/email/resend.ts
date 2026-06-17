@@ -1,6 +1,11 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend(): Resend | null {
+  if (!process.env.RESEND_API_KEY) return null;
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 const FROM = process.env.EMAIL_FROM ?? 'X-Hunt <noreply@xhunt.app>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://xhunt.app';
@@ -134,7 +139,8 @@ const SUBJECTS: Record<EmailTemplate, string> = {
 };
 
 export async function sendEmail({ to, template, data = {} }: SendEmailOpts) {
-  if (!process.env.RESEND_API_KEY) {
+  const resend = getResend();
+  if (!resend) {
     console.warn('[email] RESEND_API_KEY not set — skipping email to', to);
     return;
   }
