@@ -1,18 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSession } from '@/lib/auth/server';
 import { getDefaultConfig, mergeFeatureConfig } from '@/lib/features';
 import type { TenantFeatureConfig } from '@/lib/features';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    let session;
+    try {
+      session = await requireSession(req);
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const supabase = createAdminClient();
 
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('tenant_id')
-      .eq('id', user.id)
+      .eq('id', session.sub)
       .single();
 
     if (!profile?.tenant_id) return NextResponse.json({ error: 'No tenant' }, { status: 400 });
@@ -35,14 +40,18 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    let session;
+    try {
+      session = await requireSession(req);
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const supabase = createAdminClient();
 
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('tenant_id, role')
-      .eq('id', user.id)
+      .eq('id', session.sub)
       .single();
 
     if (!profile?.tenant_id) return NextResponse.json({ error: 'No tenant' }, { status: 400 });
