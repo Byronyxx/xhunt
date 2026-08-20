@@ -1,32 +1,25 @@
-import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSession } from '@/lib/auth/server';
 import type { DbMissionProgress, DbOutcomeEvent } from '@/lib/supabase/types';
 
 function clamp(v: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, v));
 }
 
-export async function POST() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: () => {},
-      },
-    }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function POST(req: NextRequest) {
+  let session;
+  try {
+    session = await requireSession(req);
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const supabase = createAdminClient();
 
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('tenant_id')
-    .eq('id', user.id)
+    .eq('id', session.sub)
     .single();
 
   if (!profile?.tenant_id) return NextResponse.json({ error: 'No tenant' }, { status: 403 });

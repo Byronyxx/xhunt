@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import {
   recordTrustEvent,
   getTrustProfile,
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     let profileId = targetUserId;
     if (!profileId) {
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'trusteeId and eventType are required' }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id')
@@ -102,7 +102,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'platform, platformId, and trustSignal are required' }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id')

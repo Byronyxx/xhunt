@@ -1,16 +1,19 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSession } from '@/lib/auth/server';
 
 // POST /api/messages/conversations
 // Find or create a conversation.
 // Body: { type: 'direct' | 'mission' | 'team', mission_id?, participant_ids?, name? }
 // Returns: { conversation_id: string }
 
-export async function POST(req: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function POST(req: NextRequest) {
+  let session;
+  try {
+    session = await requireSession(req);
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   const body = await req.json() as {
     type: 'direct' | 'mission' | 'team' | 'organization' | 'community';
@@ -21,7 +24,7 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
 
-  // ── Mission conversation ──────────────────────────────────────────────────
+  // ── Mission conversation ───────────────────────────────────────────────────────────────
   if (body.type === 'mission' && body.mission_id) {
     const { data: existing } = await admin
       .from('conversations')
@@ -49,7 +52,7 @@ export async function POST(req: Request) {
           mission_id: body.mission_id,
           tenant_id:  mission?.tenant_id ?? null,
           name:       mission?.title ? `${mission.title} Chat` : 'Mission Chat',
-          created_by: user.id,
+          created_by: session.sub,
         })
         .select('id')
         .single();
@@ -64,23 +67,23 @@ export async function POST(req: Request) {
     await admin
       .from('conversation_members')
       .upsert(
-        { conversation_id: convId, user_id: user.id, role: 'member' },
+        { conversation_id: convId, user_id: session.sub, role: 'member' },
         { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
       );
 
     return NextResponse.json({ conversation_id: convId });
   }
 
-  // ── Direct message ────────────────────────────────────────────────────────
+  // ── Direct message ────────────────────────────────────────────────────────────────
   if (body.type === 'direct' && body.participant_ids?.length === 1) {
     const otherId = body.participant_ids[0];
-    if (!otherId || otherId === user.id) {
+    if (!otherId || otherId === session.sub) {
       return NextResponse.json({ error: 'Invalid participant' }, { status: 400 });
     }
 
     // Find existing direct conversation between these two users
     const { data: existingId } = await admin.rpc('find_direct_conversation', {
-      user_a: user.id,
+      user_a: session.sub,
       user_b: otherId,
     });
 
@@ -91,7 +94,7 @@ export async function POST(req: Request) {
     // Create new direct conversation
     const { data: conv, error } = await admin
       .from('conversations')
-      .insert({ type: 'direct', created_by: user.id })
+      .insert({ type: 'direct', created_by: session.sub })
       .select('id')
       .single();
 
@@ -101,7 +104,7 @@ export async function POST(req: Request) {
 
     // Add both users as members
     await admin.from('conversation_members').insert([
-      { conversation_id: conv.id, user_id: user.id,  role: 'owner' },
+      { conversation_id: conv.id, user_id: session.sub,  role: 'owner' },
       { conversation_id: conv.id, user_id: otherId,  role: 'member' },
     ]);
 
@@ -112,7 +115,7 @@ export async function POST(req: Request) {
   if (['team', 'organization', 'community'].includes(body.type) && body.name) {
     const { data: conv, error } = await admin
       .from('conversations')
-      .insert({ type: body.type, name: body.name, created_by: user.id })
+      .insert({ type: body.type, name: body.name, created_by: session.sub })
       .select('id')
       .single();
 
@@ -121,7 +124,7 @@ export async function POST(req: Request) {
     }
 
     const members = [
-      { conversation_id: conv.id, user_id: user.id, role: 'owner' },
+      { conversation_id: conv.id, user_id: session.sub, role: 'owner' },
       ...(body.participant_ids ?? []).map((uid) => ({
         conversation_id: conv.id, user_id: uid, role: 'member' as const,
       })),
