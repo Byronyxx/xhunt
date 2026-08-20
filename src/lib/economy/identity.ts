@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export type CredentialType =
   | 'skill'
@@ -51,7 +51,7 @@ function buildVerificationHash(
 }
 
 export async function issueCredential(input: IssueCredentialInput) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const now = new Date().toISOString();
   const hash = buildVerificationHash(input.userId, input.credentialType, input.payload, now);
 
@@ -77,7 +77,7 @@ export async function issueCredential(input: IssueCredentialInput) {
 }
 
 export async function verifySkill(input: SkillVerificationInput) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from('skill_verifications')
@@ -119,7 +119,7 @@ export async function verifySkill(input: SkillVerificationInput) {
 }
 
 export async function getUserIdentity(userId: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const [profileRes, credentialsRes, skillsRes, didRes, summaryRes] = await Promise.all([
     supabase.from('user_profiles').select('id,display_name,email,bio,location_city,location_country,interests,xp_balance,missions_completed').eq('id', userId).single(),
@@ -144,7 +144,7 @@ export async function exportIdentity(
   format: 'json' | 'did_document' | 'verifiable_presentation' | 'pdf_report',
   scopes: string[]
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const identity = await getUserIdentity(userId);
 
   let payload: Record<string, unknown> = {};
@@ -190,7 +190,7 @@ export async function exportIdentity(
 }
 
 export async function getCredentialByHash(hash: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('identity_credentials')
     .select('*')
