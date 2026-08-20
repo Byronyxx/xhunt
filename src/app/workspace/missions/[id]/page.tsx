@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import type { DbMission, DbMissionScore, DbStep } from '@/lib/supabase/types';
 
@@ -54,7 +53,6 @@ const EDIT_STEP_TYPES = [
 export default function MissionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const supabase = createClient();
 
   const [mission, setMission]     = useState<MissionDetail | null>(null);
   const [loading, setLoading]     = useState(true);
@@ -70,44 +68,48 @@ export default function MissionDetailPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      try {
+        const res = await fetch(`/api/missions/${id}`);
+        if (!res.ok) { router.push('/workspace/missions'); return; }
+        const { mission: m } = await res.json();
 
-      const [missionRes, scoreRes, progressRes] = await Promise.all([
-        supabase.from('missions').select('*').eq('id', id).single(),
-        supabase.from('mission_scores').select('*').eq('mission_id', id).maybeSingle(),
-        supabase.from('mission_progress').select('user_id, completed_at').eq('mission_id', id),
-      ]);
-
-      if (!missionRes.data) { router.push('/workspace/missions'); return; }
-      const m = missionRes.data as DbMission;
-      const progress = progressRes.data ?? [];
-
-      setMission({
-        ...m,
-        score: scoreRes.data ?? undefined,
-        completions: progress.filter((p) => p.completed_at).length,
-        participants: new Set(progress.map((p) => p.user_id)).size,
-      });
-      setEditTitle(m.title);
-      setEditStory(m.story_context ?? '');
-      setLoading(false);
+        setMission(m);
+        setEditTitle(m.title);
+        setEditStory(m.story_context ?? '');
+      } finally {
+        setLoading(false);
+      }
     }
     load();
-  }, [id, supabase, router]);
+  }, [id, router]);
 
   async function updateStatus(status: string) {
     if (!mission) return;
-    await supabase.from('missions').update({ status }).eq('id', id);
-    setMission((prev) => prev ? { ...prev, status: status as DbMission['status'] } : prev);
+    const res = await fetch(`/api/missions/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) {
+      setMission((prev) => prev ? { ...prev, status: status as DbMission['status'] } : prev);
+    }
   }
 
   async function saveEdits() {
     setSaving(true);
-    await supabase.from('missions').update({ title: editTitle.trim(), story_context: editStory.trim() || null }).eq('id', id);
-    setMission((prev) => prev ? { ...prev, title: editTitle.trim(), story_context: editStory.trim() || null } : prev);
-    setSaving(false);
-    setEditing(false);
+    try {
+      const res = await fetch(`/api/missions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editTitle.trim(), story_context: editStory.trim() || null }),
+      });
+      if (res.ok) {
+        setMission((prev) => prev ? { ...prev, title: editTitle.trim(), story_context: editStory.trim() || null } : prev);
+        setEditing(false);
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   const getAiRecommendation = useCallback(async () => {
@@ -201,10 +203,19 @@ export default function MissionDetailPage() {
     setSaving(true);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const cleanSteps = editStepsArr.map(({ aiGenerating: _ai, ...s }) => s);
-    await supabase.from('missions').update({ steps: cleanSteps }).eq('id', id);
-    setMission((prev) => prev ? { ...prev, steps: cleanSteps as unknown as DbStep[] } : prev);
-    setSaving(false);
-    setEditingSteps(false);
+    try {
+      const res = await fetch(`/api/missions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ steps: cleanSteps }),
+      });
+      if (res.ok) {
+        setMission((prev) => prev ? { ...prev, steps: cleanSteps as unknown as DbStep[] } : prev);
+        setEditingSteps(false);
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {
