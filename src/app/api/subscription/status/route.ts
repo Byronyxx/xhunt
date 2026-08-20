@@ -1,12 +1,12 @@
-import { createClient } from '@/lib/supabase/server';
+import { NextRequest } from 'next/server';
+import { getSession } from '@/lib/auth/server';
 import { getUserTierInfo } from '@/lib/freemium';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const sb = await createClient();
-    const { data: { user } } = await sb.auth.getUser();
+    const session = await getSession(req);
 
-    if (!user) {
+    if (!session) {
       return Response.json({
         tier: 'free', isTrialActive: false, trialDaysLeft: 0,
         trialEndsAt: null, canUseAI: false, canAccessPremiumMissions: false,
@@ -14,7 +14,7 @@ export async function GET() {
       });
     }
 
-    const info = await getUserTierInfo(user.id);
+    const info = await getUserTierInfo(session.sub);
     return Response.json(info);
   } catch {
     return Response.json({
