@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSession } from '@/lib/auth/server';
 import { proximityBoost } from '@/lib/proximity';
 
 export async function GET(req: NextRequest) {
@@ -12,17 +12,15 @@ export async function GET(req: NextRequest) {
   const userLng = parseFloat(searchParams.get('lng') ?? '');
   const userCoords = !isNaN(userLat) && !isNaN(userLng) ? { lat: userLat, lng: userLng } : null;
 
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
-  );
+  let session;
+  try {
+    session = await requireSession(req);
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const supabase = createAdminClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { data: profile } = await supabase.from('user_profiles').select('tenant_id').eq('id', user.id).single();
+  const { data: profile } = await supabase.from('user_profiles').select('tenant_id').eq('id', session.sub).single();
   if (!profile?.tenant_id) return NextResponse.json({ error: 'No tenant' }, { status: 403 });
   const tid = profile.tenant_id;
 
@@ -37,7 +35,7 @@ export async function GET(req: NextRequest) {
       .eq('tenant_id', tid),
     supabase.from('mission_progress')
       .select('mission_id')
-      .eq('user_id', user.id)
+      .eq('user_id', session.sub)
       .not('completed_at', 'is', null),
   ]);
 

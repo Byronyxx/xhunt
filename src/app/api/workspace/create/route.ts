@@ -1,16 +1,23 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSession } from '@/lib/auth/server';
 
 // POST /api/workspace/create
 // Creates a tenant + updates the user's profile in one transaction.
-// Uses the admin client to bypass RLS (handles the case where migration 018
-// hasn't been applied to the live DB yet).
+// Uses the admin client to bypass RLS. Identity is verified locally via our
+// own JWT (requireSession) rather than sb.auth.getUser() — the Supabase
+// client can't reliably recognize our custom-signed tokens (see migration
+// 029), so routes that depended on it were silently 401'ing after the
+// Clerk → custom-auth migration. This is the fix pattern to replicate
+// across the other routes still calling sb.auth.getUser().
 
-export async function POST(req: Request) {
-  const sb = await createClient();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function POST(req: NextRequest) {
+  let user;
+  try {
+    user = await requireSession(req);
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   const { name, slug, org_type } = await req.json() as {
     name: string;
@@ -43,7 +50,7 @@ export async function POST(req: Request) {
   const { error: profileErr } = await admin
     .from('user_profiles')
     .upsert({
-      id: user.id,
+      id: user.sub,
       tenant_id: tenant.id,
       role: 'tenant_admin',
       onboarding_complete: true,
