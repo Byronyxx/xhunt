@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  // ── Mission conversation ───────────────────────────────────────────────────────────────
+  // ── Mission conversation ──────────────────────────────────────────────
   if (body.type === 'mission' && body.mission_id) {
     const { data: existing } = await admin
       .from('conversations')
