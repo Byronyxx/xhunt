@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { geocodeCity } from '@/lib/proximity';
 
@@ -82,14 +81,13 @@ export default function NewMissionPage() {
   useEffect(() => {
     async function loadSegments() {
       setSegLoading(true);
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setSegLoading(false); return; }
-      const { data: profile } = await supabase.from('user_profiles').select('tenant_id').eq('id', user.id).single();
-      if (!profile?.tenant_id) { setSegLoading(false); return; }
-      const { data } = await supabase.from('audience_segments').select('id, name, member_count').eq('tenant_id', profile.tenant_id).order('name');
-      setSegments(data ?? []);
-      setSegLoading(false);
+      try {
+        const res = await fetch('/api/workspace/segments');
+        const data = await res.json();
+        setSegments(res.ok ? (data.segments ?? []) : []);
+      } finally {
+        setSegLoading(false);
+      }
     }
     loadSegments();
   }, []);
@@ -227,36 +225,32 @@ export default function NewMissionPage() {
     setError('');
     setSaving(true);
 
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setError('Not authenticated.'); setSaving(false); return; }
-    const { data: profile } = await supabase.from('user_profiles').select('tenant_id').eq('id', user.id).single();
-    if (!profile?.tenant_id) { setError('No organization found.'); setSaving(false); return; }
-
     const cleanSteps = steps.map(({ aiGenerating: _ai, ...s }) => s);
     const segTags = selectedSegs.map((sid) => `seg:${sid}`);
 
-    const { data, error: dbErr } = await supabase.from('missions').insert({
-      tenant_id:      profile.tenant_id,
-      created_by:     user.id,
-      title:          title.trim(),
-      story_context:  story.trim() || null,
-      difficulty,
-      estimated_time: estimatedTime || null,
-      steps:          cleanSteps,
-      reward:         reward.trim() || 'Mission completion badge',
-      tags:           [...tags, ...segTags],
-      status,
-      is_public:      isPublic,
-      // Proximity fields
-      location_type:  locationType,
-      location_city:  locationCity.trim() || null,
-      lat:            locationLat,
-      lng:            locationLng,
-      radius_km:      locationType !== 'remote' ? locationRadius : null,
-    }).select('id').single();
+    const res = await fetch('/api/missions/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title:          title.trim(),
+        story:          story.trim(),
+        difficulty,
+        estimatedTime,
+        steps:          cleanSteps,
+        reward:         reward.trim(),
+        tags:           [...tags, ...segTags],
+        status,
+        isPublic,
+        locationType,
+        locationCity,
+        locationLat,
+        locationLng,
+        locationRadius,
+      }),
+    });
+    const data = await res.json();
 
-    if (dbErr) { setError(dbErr.message); setSaving(false); return; }
+    if (!res.ok) { setError(data.error ?? 'Failed to save mission.'); setSaving(false); return; }
     setSaved(true);
     setTimeout(() => router.push(`/workspace/missions/${data.id}`), 700);
   }
