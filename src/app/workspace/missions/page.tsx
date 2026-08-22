@@ -8,7 +8,6 @@ import {
   ArrowUpRight, Star, TrendingUp
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import type { DbMission } from '@/lib/supabase/types';
 
@@ -45,48 +44,30 @@ export default function MissionsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [view, setView] = useState<ViewMode>('grid');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const supabase = createClient();
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: profile } = await supabase.from('user_profiles').select('tenant_id').eq('id', user.id).single();
-      if (!profile?.tenant_id) return;
-
-      const [missionsRes, progressRes, scoresRes] = await Promise.all([
-        supabase.from('missions').select('*').eq('tenant_id', profile.tenant_id).order('created_at', { ascending: false }),
-        supabase.from('mission_progress').select('mission_id, user_id, completed_at').eq('tenant_id', profile.tenant_id),
-        supabase.from('mission_scores').select('mission_id, mei').eq('tenant_id', profile.tenant_id),
-      ]);
-
-      const completionMap: Record<string, number> = {};
-      const participantMap: Record<string, Set<string>> = {};
-      (progressRes.data ?? []).forEach((p) => {
-        if (p.completed_at) completionMap[p.mission_id] = (completionMap[p.mission_id] ?? 0) + 1;
-        if (!participantMap[p.mission_id]) participantMap[p.mission_id] = new Set();
-        participantMap[p.mission_id].add(p.user_id);
-      });
-
-      const meiMap: Record<string, number> = {};
-      (scoresRes.data ?? []).forEach((s) => { meiMap[s.mission_id] = s.mei; });
-
-      setMissions(
-        (missionsRes.data ?? []).map((m) => ({
-          ...m,
-          completions: completionMap[m.id] ?? 0,
-          participants: participantMap[m.id]?.size ?? 0,
-          mei: meiMap[m.id] ?? null,
-        }))
-      );
-      setLoading(false);
+      try {
+        const res = await fetch('/api/workspace/missions');
+        if (!res.ok) { setLoading(false); return; }
+        const data = await res.json();
+        setMissions(data.missions ?? []);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
-  }, [supabase]);
+  }, []);
 
   async function updateStatus(id: string, status: string) {
-    await supabase.from('missions').update({ status }).eq('id', id);
-    setMissions((prev) => prev.map((m) => m.id === id ? { ...m, status: status as DbMission['status'] } : m));
+    const res = await fetch(`/api/missions/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) {
+      setMissions((prev) => prev.map((m) => m.id === id ? { ...m, status: status as DbMission['status'] } : m));
+    }
     setOpenMenu(null);
   }
 

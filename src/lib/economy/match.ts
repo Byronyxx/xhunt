@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export interface MatchSignal {
   signalType: string;
@@ -32,7 +32,7 @@ export interface WorkflowStep {
 }
 
 export async function upsertMatchSignals(userId: string, signals: MatchSignal[]) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const rows = signals.map((s) => ({
     user_id: userId,
@@ -53,7 +53,7 @@ export async function upsertMatchSignals(userId: string, signals: MatchSignal[])
 }
 
 export async function computeMatchesForUser(userId: string): Promise<MatchResult[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Gather user signals
   const { data: signals } = await supabase
@@ -191,7 +191,7 @@ export async function computeMatchesForUser(userId: string): Promise<MatchResult
 }
 
 export async function getMatchesForUser(userId: string, limit = 10) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from('match_results')
@@ -216,7 +216,7 @@ export async function createCoordinationWorkflow(
   createdBy: string,
   governanceRules: Record<string, unknown> = {}
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const humanCheckpoints = steps.filter((s) => s.checkpoint && s.assigneeType !== 'ai').length;
 
@@ -252,7 +252,7 @@ export async function recordGovernanceAction(
     isReversible?: boolean;
   } = {}
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from('governance_actions')

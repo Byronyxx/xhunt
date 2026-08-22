@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { orchestrate, type IntelligenceFunction } from '@/lib/xil/orchestrator';
 import { getAgentRegistry } from '@/lib/xil/constitution';
 
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const url = new URL(req.url);
     const view = url.searchParams.get('view') ?? 'registry';
 
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id, role')

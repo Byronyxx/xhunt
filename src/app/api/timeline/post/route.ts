@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSession } from '@/lib/auth/server';
 import type { PostType } from '@/lib/supabase/types';
 
 interface CreatePostBody {
@@ -10,9 +11,13 @@ interface CreatePostBody {
 }
 
 export async function POST(req: NextRequest) {
-  const sb = await createClient();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  let session;
+  try {
+    session = await requireSession(req);
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const sb = createAdminClient();
 
   let body: CreatePostBody;
   try {
@@ -29,7 +34,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await sb
     .from('experience_posts')
     .insert({
-      user_id:    user.id,
+      user_id:    session.sub,
       post_type,
       caption:    caption?.trim() || null,
       mission_id: mission_id || null,

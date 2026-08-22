@@ -9,7 +9,6 @@ import {
   Server, Lock, Unlock, ChevronRight, Sliders,
   Sun, Moon, Upload, Sparkles,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import ThemeToggle from '@/components/ThemeToggle';
 import type { DbTenant, DbUserProfile } from '@/lib/supabase/types';
@@ -142,35 +141,25 @@ export default function SettingsPage() {
   const [brandSaved, setBrandSaved] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  const supabase = createClient();
-
   useEffect(() => {
     async function load() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        setCurrentUserId(user.id);
+        const res = await fetch('/api/workspace/settings');
+        if (!res.ok) return;
+        const data = await res.json();
 
-        const { data: profile } = await supabase
-          .from('user_profiles').select('tenant_id').eq('id', user.id).single();
-        if (!profile?.tenant_id) return;
-        setTenantId(profile.tenant_id);
+        setCurrentUserId(data.currentUserId ?? '');
+        setTenantId(data.tenantId ?? '');
 
-        const [tenantRes, usersRes, ssoRes] = await Promise.all([
-          supabase.from('tenants').select('*').eq('id', profile.tenant_id).single(),
-          supabase.from('user_profiles').select('*').eq('tenant_id', profile.tenant_id).order('created_at', { ascending: true }),
-          supabase.from('sso_configs').select('*').eq('tenant_id', profile.tenant_id),
-        ]);
-
-        if (tenantRes.data) {
-          setTenant(tenantRes.data);
-          setOrgName(tenantRes.data.name);
-          setOrgSlug(tenantRes.data.slug);
+        if (data.tenant) {
+          setTenant(data.tenant);
+          setOrgName(data.tenant.name);
+          setOrgSlug(data.tenant.slug);
         }
-        setUsers(usersRes.data ?? []);
-        if (ssoRes.data && ssoRes.data.length > 0) {
-          setSsoConfigs(ssoRes.data as SsoConfig[]);
-          setSsoEnabled(ssoRes.data.some((c: SsoConfig) => c.is_enabled));
+        setUsers(data.users ?? []);
+        if (data.ssoConfigs?.length > 0) {
+          setSsoConfigs(data.ssoConfigs as SsoConfig[]);
+          setSsoEnabled(data.ssoConfigs.some((c: SsoConfig) => c.is_enabled));
         }
 
         // Load feature config
@@ -193,11 +182,20 @@ export default function SettingsPage() {
   async function saveOrg() {
     if (!tenant) return;
     setSaving(true);
-    await supabase.from('tenants').update({ name: orgName.trim(), slug: orgSlug.trim() }).eq('id', tenant.id);
-    setTenant((prev) => prev ? { ...prev, name: orgName, slug: orgSlug } : prev);
-    setSaved(true);
-    setSaving(false);
-    setTimeout(() => setSaved(false), 2500);
+    try {
+      const res = await fetch('/api/workspace/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: orgName.trim(), slug: orgSlug.trim() }),
+      });
+      if (res.ok) {
+        setTenant((prev) => prev ? { ...prev, name: orgName, slug: orgSlug } : prev);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function saveFeatureConfig() {
@@ -270,17 +268,17 @@ export default function SettingsPage() {
     if (!file || !tenantId) return;
     setLogoUploading(true);
     try {
-      const ext = file.name.split('.').pop() ?? 'png';
-      const path = `logos/${tenantId}/logo.${ext}`;
-      const { error } = await supabase.storage.from('branding').upload(path, file, { upsert: true });
-      if (!error) {
-        const { data: { publicUrl } } = supabase.storage.from('branding').getPublicUrl(path);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/workspace/settings/branding/logo', { method: 'POST', body: formData });
+      if (res.ok) {
+        const { url } = await res.json();
         await fetch('/api/workspace/features', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ branding: { ...featureConfig?.branding, logoUrl: publicUrl } }),
+          body: JSON.stringify({ branding: { ...featureConfig?.branding, logoUrl: url } }),
         });
-        setFeatureConfig((prev) => prev ? { ...prev, branding: { ...prev.branding, logoUrl: publicUrl } } : prev);
+        setFeatureConfig((prev) => prev ? { ...prev, branding: { ...prev.branding, logoUrl: url } } : prev);
       }
     } finally {
       setLogoUploading(false);
@@ -290,22 +288,26 @@ export default function SettingsPage() {
   async function saveSsoConfig() {
     if (!tenantId) return;
     setSsoSaving(true);
-    const isSaml = ['saml', 'microsoft_entra', 'okta'].includes(activeSsoProvider);
-    const config = isSaml
-      ? { entity_id: ssoForm.entityId, sso_url: ssoForm.ssoUrl, certificate: ssoForm.certificate }
-      : { client_id: ssoForm.clientId, issuer_url: ssoForm.issuerUrl };
-    const { data, error } = await supabase.from('sso_configs').upsert({
-      tenant_id: tenantId,
-      provider_type: activeSsoProvider,
-      display_name: ssoForm.displayName || activeSsoProvider.replace(/_/g, ' '),
-      is_enabled: true,
-      config,
-    }, { onConflict: 'tenant_id,provider_type' }).select();
-    if (!error && data) {
-      setSsoConfigs((prev) => [...prev.filter((c) => c.provider_type !== activeSsoProvider), data[0] as SsoConfig]);
-      setSsoEnabled(true);
+    try {
+      const isSaml = ['saml', 'microsoft_entra', 'okta'].includes(activeSsoProvider);
+      const config = isSaml
+        ? { entity_id: ssoForm.entityId, sso_url: ssoForm.ssoUrl, certificate: ssoForm.certificate }
+        : { client_id: ssoForm.clientId, issuer_url: ssoForm.issuerUrl };
+      const res = await fetch('/api/workspace/settings/sso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerType: activeSsoProvider, displayName: ssoForm.displayName, config }),
+      });
+      if (res.ok) {
+        const { config: saved } = await res.json();
+        if (saved) {
+          setSsoConfigs((prev) => [...prev.filter((c) => c.provider_type !== activeSsoProvider), saved as SsoConfig]);
+          setSsoEnabled(true);
+        }
+      }
+    } finally {
+      setSsoSaving(false);
     }
-    setSsoSaving(false);
   }
 
   async function testSsoConfig(configId: string) {
@@ -315,13 +317,25 @@ export default function SettingsPage() {
   }
 
   async function toggleSsoConfig(configId: string, enabled: boolean) {
-    await supabase.from('sso_configs').update({ is_enabled: enabled }).eq('id', configId);
-    setSsoConfigs((prev) => prev.map((c) => c.id === configId ? { ...c, is_enabled: enabled } : c));
+    const res = await fetch(`/api/workspace/settings/sso/${configId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
+    });
+    if (res.ok) {
+      setSsoConfigs((prev) => prev.map((c) => c.id === configId ? { ...c, is_enabled: enabled } : c));
+    }
   }
 
   async function updateUserRole(userId: string, role: string) {
-    await supabase.from('user_profiles').update({ role: role as DbUserProfile['role'] }).eq('id', userId);
-    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, role: role as DbUserProfile['role'] } : u));
+    const res = await fetch(`/api/workspace/settings/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role }),
+    });
+    if (res.ok) {
+      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, role: role as DbUserProfile['role'] } : u));
+    }
   }
 
   const ROLE_LABEL: Record<string, string> = { platform_admin: 'Platform Admin', tenant_admin: 'Admin', mission_creator: 'Creator', analyst: 'Analyst', participant: 'Participant' };

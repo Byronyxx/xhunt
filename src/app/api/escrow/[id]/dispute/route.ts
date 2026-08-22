@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSession } from '@/lib/auth/server';
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const sb = await createClient();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  let session;
+  try {
+    session = await requireSession(req);
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const sb = createAdminClient();
 
-  const { data: profile } = await sb.from('user_profiles').select('tenant_id, role').eq('id', user.id).single();
+  const { data: profile } = await sb.from('user_profiles').select('tenant_id, role').eq('id', session.sub).single();
   if (!profile?.tenant_id) return NextResponse.json({ error: 'No tenant' }, { status: 403 });
 
   const body = await req.json() as { reason: string };
@@ -43,7 +48,7 @@ export async function POST(
     tenant_id: profile.tenant_id,
     transaction_type: 'dispute_hold',
     amount_cents: heldAmount,
-    metadata: { disputed_by: user.id, reason: body.reason },
+    metadata: { disputed_by: session.sub, reason: body.reason },
   });
 
   return NextResponse.json({ escrow: updated });

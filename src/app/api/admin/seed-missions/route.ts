@@ -1,28 +1,22 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSession } from '@/lib/auth/server';
 import { MOCK_HUNTS } from '@/lib/mockHunts';
 
-export async function POST() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (toSet) => toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
-      },
-    }
-  );
+export async function POST(req: NextRequest) {
+  let session;
+  try {
+    session = await requireSession(req);
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const admin = createAdminClient();
 
-  const { data: profile } = await supabase
+  const { data: profile } = await admin
     .from('user_profiles')
     .select('tenant_id')
-    .eq('id', user.id)
+    .eq('id', session.sub)
     .single();
 
   if (!profile?.tenant_id) {
@@ -30,7 +24,7 @@ export async function POST() {
   }
 
   // Check how many missions already exist
-  const { count } = await supabase
+  const { count } = await admin
     .from('missions')
     .select('id', { count: 'exact', head: true })
     .eq('tenant_id', profile.tenant_id);
@@ -41,7 +35,7 @@ export async function POST() {
 
   const rows = MOCK_HUNTS.map((h) => ({
     tenant_id: profile.tenant_id,
-    created_by: user.id,
+    created_by: session.sub,
     title: h.title,
     story_context: h.story_context,
     difficulty: h.difficulty,
@@ -52,7 +46,7 @@ export async function POST() {
     status: 'active' as const,
   }));
 
-  const { data: inserted, error } = await supabase
+  const { data: inserted, error } = await admin
     .from('missions')
     .insert(rows)
     .select('id, title');
