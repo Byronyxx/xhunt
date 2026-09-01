@@ -19,9 +19,14 @@ CREATE TABLE IF NOT EXISTS public.trust_scores (
   evidence_count integer NOT NULL DEFAULT 0,
   decay_factor   numeric(4,3) NOT NULL DEFAULT 1.0, -- reduces score for inactivity
   last_interaction timestamptz,
-  updated_at     timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (trustor_id, trustee_id, dimension, COALESCE(context, ''))
+  updated_at     timestamptz NOT NULL DEFAULT now()
 );
+
+-- Table-level UNIQUE constraints can't contain expressions like COALESCE(),
+-- so this is a unique index instead — it also satisfies the ON CONFLICT
+-- target used by apply_trust_event() further down this file.
+CREATE UNIQUE INDEX IF NOT EXISTS trust_scores_trustor_trustee_dim_ctx_idx
+  ON public.trust_scores (trustor_id, trustee_id, dimension, COALESCE(context, ''));
 
 -- Aggregate trust profile per user (materialized from trust_scores)
 CREATE TABLE IF NOT EXISTS public.trust_profiles (

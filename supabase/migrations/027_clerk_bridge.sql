@@ -22,7 +22,11 @@ COMMENT ON COLUMN public.user_profiles.default_surface IS
 
 -- Update RLS policy so users can read their own profile by clerk_user_id
 -- (needed in layouts that resolve the Clerk userId to a Supabase row)
-CREATE POLICY IF NOT EXISTS "read_own_profile_by_clerk_id"
+-- Note: CREATE POLICY has no IF NOT EXISTS clause in Postgres — the
+-- idempotent pattern is DROP POLICY IF EXISTS followed by a plain CREATE.
+DROP POLICY IF EXISTS "read_own_profile_by_clerk_id" ON public.user_profiles;
+
+CREATE POLICY "read_own_profile_by_clerk_id"
   ON public.user_profiles
   FOR SELECT
   USING (clerk_user_id = auth.uid()::text OR id = auth.uid());

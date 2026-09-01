@@ -4,8 +4,25 @@
 --
 -- Also ensures the JWT signing key in Supabase matches our backend JWT_SECRET
 -- so that Supabase accepts our tokens for RLS evaluation.
+--
+-- NOTE: the policies below assume an is_public flag on contribution_ledger,
+-- trust_profiles, skill_verifications, and identity_credentials, but none of
+-- those tables were ever given that column in migrations 022–024. Adding it
+-- here, defaulting to false (private), so the policies below actually work.
 
--- ── contribution_ledger ───────────────────────────────────────────────────────
+ALTER TABLE public.contribution_ledger
+  ADD COLUMN IF NOT EXISTS is_public boolean NOT NULL DEFAULT false;
+
+ALTER TABLE public.trust_profiles
+  ADD COLUMN IF NOT EXISTS is_public boolean NOT NULL DEFAULT false;
+
+ALTER TABLE public.skill_verifications
+  ADD COLUMN IF NOT EXISTS is_public boolean NOT NULL DEFAULT false;
+
+ALTER TABLE public.identity_credentials
+  ADD COLUMN IF NOT EXISTS is_public boolean NOT NULL DEFAULT false;
+
+-- ── contribution_ledger ─────────────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users can write own contributions" ON public.contribution_ledger;
 DROP POLICY IF EXISTS "Users can read own private contributions" ON public.contribution_ledger;
 
@@ -17,21 +34,21 @@ CREATE POLICY "Users can read own private contributions"
   ON public.contribution_ledger FOR SELECT
   USING (is_public = true OR auth.uid() = user_id);
 
--- ── trust_profiles ────────────────────────────────────────────────────────────
+-- ── trust_profiles ────────────────────────────────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users read own trust" ON public.trust_profiles;
 
 CREATE POLICY "Users read own trust"
   ON public.trust_profiles FOR SELECT
   USING (is_public = true OR auth.uid() = user_id);
 
--- ── skill_verifications ───────────────────────────────────────────────────────
+-- ── skill_verifications ───────────────────────────────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users read own private skill verifications" ON public.skill_verifications;
 
 CREATE POLICY "Users read own private skill verifications"
   ON public.skill_verifications FOR SELECT
   USING (is_public = true OR auth.uid() = user_id);
 
--- ── identity_credentials ─────────────────────────────────────────────────────
+-- ── identity_credentials ─────────────────────────────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users manage own credentials" ON public.identity_credentials;
 
 CREATE POLICY "Users manage own credentials"
@@ -39,7 +56,7 @@ CREATE POLICY "Users manage own credentials"
   USING (is_public = true OR auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
--- ── match_signals ─────────────────────────────────────────────────────────────
+-- ── match_signals ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users manage own signals" ON public.match_signals;
 
 CREATE POLICY "Users manage own signals"
@@ -47,14 +64,14 @@ CREATE POLICY "Users manage own signals"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
--- ── match_results ─────────────────────────────────────────────────────────────
+-- ── match_results ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users read own matches" ON public.match_results;
 
 CREATE POLICY "Users read own matches"
   ON public.match_results FOR SELECT
   USING (auth.uid() = seeker_id);
 
--- ── xil_routing_log ──────────────────────────────────────────────────────────
+-- ── xil_routing_log ─────────────────────────────────────────────────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users read own routing log" ON public.xil_routing_log;
 
 CREATE POLICY "Users read own routing log"

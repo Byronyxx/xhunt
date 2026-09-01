@@ -4,7 +4,7 @@
 -- mission_scores (MEI cache) tables. Adds compute_mei(), v_step_dropoff,
 -- and v_mission_funnel for the Intelligence Engine.
 
--- ── 1. Extend mission_events ──────────────────────────────────────────────────
+-- ── 1. Extend mission_events ──────────────────────────────────────────────
 
 ALTER TABLE public.mission_events
   ADD COLUMN IF NOT EXISTS session_id  text,
@@ -56,7 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_me_duration
   ON public.mission_events(mission_id, step_id, duration_ms)
   WHERE duration_ms IS NOT NULL;
 
--- ── 2. Mission State Machine ──────────────────────────────────────────────────
+-- ── 2. Mission State Machine ──────────────────────────────────────────────
 -- One row per (user, mission) pair. Updated whenever a state transition occurs.
 -- States: not_started → active → in_progress ⟷ stalled → completed → analyzed
 
@@ -111,7 +111,7 @@ CREATE TRIGGER mission_state_updated_at
   BEFORE UPDATE ON public.mission_state
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
--- ── 3. Mission Scores (MEI cache) ─────────────────────────────────────────────
+-- ── 3. Mission Scores (MEI cache) ───────────────────────────────────────────────
 -- Stores computed MEI and component scores. One row per mission.
 -- Populated by the compute_and_store_mei() function or a scheduled job.
 
@@ -153,7 +153,7 @@ CREATE POLICY "scores_public_read"
     )
   );
 
--- ── 4. MEI Computation Function ───────────────────────────────────────────────
+-- ── 4. MEI Computation Function ─────────────────────────────────────────────
 -- Returns live MEI components computed directly from mission_events.
 -- Weights: completion 40%, engagement 25%, retention 20%, outcome 15%.
 --
@@ -187,7 +187,7 @@ LANGUAGE sql STABLE SECURITY DEFINER AS $$
           ELSE completers::numeric / starters * 100 END, 1) AS completion_score,
 
     -- Engagement: fraction of started steps that were completed
-    ROUND(COALESCE(step_rate * 100, 0), 1) AS engagement_score,
+    ROUND(COALESCE(step_rate * 100, 0)::numeric, 1) AS engagement_score,
 
     -- Retention: fraction of starters who came back at least once
     ROUND(CASE WHEN starters = 0 THEN 0
@@ -201,7 +201,7 @@ LANGUAGE sql STABLE SECURITY DEFINER AS $$
     LEAST(100, ROUND(
       CASE WHEN starters = 0 THEN 0 ELSE
           0.40 * (CASE WHEN starters = 0 THEN 0 ELSE completers::numeric / starters * 100 END)
-        + 0.25 * COALESCE(step_rate * 100, 0)
+        + 0.25 * COALESCE(step_rate * 100, 0)::numeric
         + 0.20 * (CASE WHEN starters = 0 THEN 0 ELSE returners::numeric / starters * 100 END)
         + 0.15 * (CASE WHEN completers = 0 THEN 0 ELSE claimers::numeric / completers * 100 END)
       END
@@ -242,7 +242,7 @@ BEGIN
 END;
 $$;
 
--- ── 5. Step Drop-off View ─────────────────────────────────────────────────────
+-- ── 5. Step Drop-off View ────────────────────────────────────────────────
 -- Per-step funnel metrics for the Health Engine (Sprint 3).
 -- Replaces the get_step_dropoffs() function from migration 004.
 
@@ -266,7 +266,7 @@ CREATE OR REPLACE VIEW public.v_step_dropoff AS
   GROUP BY e.mission_id, e.step_id
   ORDER BY e.mission_id, e.step_id;
 
--- ── 6. Mission Funnel View ────────────────────────────────────────────────────
+-- ── 6. Mission Funnel View ──────────────────────────────────────────────────
 -- Top-of-funnel through reward claim for each mission.
 -- Powers the Workspace analytics dashboard.
 
