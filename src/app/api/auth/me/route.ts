@@ -32,7 +32,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
-const ALLOWED_FIELDS = new Set(['display_name', 'avatar_url', 'default_surface']);
+const ALLOWED_FIELDS = new Set([
+  'display_name', 'avatar_url', 'default_surface',
+  'interests', 'goals', 'onboarding_complete',
+]);
 
 export async function PATCH(req: NextRequest) {
   let session;
