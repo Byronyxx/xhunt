@@ -202,13 +202,13 @@ export default function GetStartedPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
 
-  // ── Auth guard ───────────────────────────────────────────────────────────
+  // ── Auth guard ─────────────────────────────────────────────────────────
   useEffect(() => {
     async function checkAuth() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        router.replace('/auth/signup?next=/get-started');
+        router.replace('/sign-up?next=/get-started');
         return;
       }
       setUserId(user.id);
@@ -308,12 +308,15 @@ export default function GetStartedPage() {
 
         // Persist to Supabase so auth-based routing works on any device
         if (userId) {
-          const supabase = createClient();
-          await supabase.from('user_profiles').update({
-            interests:           data.profile.causes,
-            goals:               data.profile.motivations,
-            onboarding_complete: true,
-          }).eq('id', userId);
+          await fetch('/api/auth/me', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              interests:           data.profile.causes,
+              goals:               data.profile.motivations,
+              onboarding_complete: true,
+            }),
+          }).catch(() => {});
         }
 
         setTimeout(() => { setProfile(data.profile!); setPhase('complete'); }, 2800);
