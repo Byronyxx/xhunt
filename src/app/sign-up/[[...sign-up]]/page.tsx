@@ -33,6 +33,7 @@ function SignUpForm() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [pendingConfirmation, setPendingConfirmation] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -43,8 +44,12 @@ function SignUpForm() {
     }
     setLoading(true);
     try {
-      const user = await apiRegister({ email, password, display_name: name || undefined });
-      setUser(user);
+      const result = await apiRegister({ email, password, display_name: name || undefined });
+      if ('pendingConfirmation' in result) {
+        setPendingConfirmation(true);
+        return;
+      }
+      setUser(result);
       router.push('/get-started');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed');
@@ -99,6 +104,23 @@ function SignUpForm() {
           <h2 style={{ fontSize: 24, fontWeight: 900, color: '#F0F4FF', letterSpacing: '-0.02em', marginBottom: 4 }}>Create your account</h2>
           <p style={{ fontSize: 14, color: '#8B9CC0', marginBottom: 32 }}>Free forever. No credit card needed.</p>
 
+          {pendingConfirmation ? (
+            <div style={{
+              background: 'rgba(34,255,170,0.08)', border: '1px solid rgba(34,255,170,0.25)',
+              borderRadius: 12, padding: '20px 18px',
+            }}>
+              <p style={{ fontSize: 15, fontWeight: 700, color: '#22FFAA', marginBottom: 8 }}>
+                Check your email
+              </p>
+              <p style={{ fontSize: 13, color: '#8B9CC0', lineHeight: 1.6, margin: 0 }}>
+                We sent a confirmation link to <strong style={{ color: '#F0F4FF' }}>{email}</strong>.
+                Click it to activate your account, then sign in.
+              </p>
+              <Link href="/sign-in" style={{ display: 'inline-block', marginTop: 16, fontSize: 13, fontWeight: 700, color: '#22FFAA', textDecoration: 'none' }}>
+                Go to sign in →
+              </Link>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
               <label style={LABEL_STYLE}>Your name</label>
@@ -164,6 +186,7 @@ function SignUpForm() {
               <Link href="/privacy" style={{ color: '#8B9CC0' }}>Privacy Policy</Link>.
             </p>
           </form>
+          )}
 
           <p style={{ fontSize: 14, color: '#8B9CC0', textAlign: 'center', marginTop: 24 }}>
             Already have an account?{' '}

@@ -42,7 +42,7 @@ export async function apiLogin(payload: LoginPayload): Promise<AuthUser> {
   return mapUser(data.user);
 }
 
-export async function apiRegister(payload: RegisterPayload): Promise<AuthUser> {
+export async function apiRegister(payload: RegisterPayload): Promise<AuthUser | { pendingConfirmation: true; email: string }> {
   const res = await fetch('/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -52,8 +52,11 @@ export async function apiRegister(payload: RegisterPayload): Promise<AuthUser> {
     const err = await res.json().catch(() => ({ detail: 'Registration failed' }));
     throw new Error(err.detail ?? 'Registration failed');
   }
-  const data: AuthResponse = await res.json();
-  return mapUser(data.user);
+  const data = await res.json();
+  if ('pendingConfirmation' in data) {
+    return { pendingConfirmation: true as const, email: data.email as string };
+  }
+  return mapUser((data as AuthResponse).user);
 }
 
 export async function apiMe(): Promise<AuthUser | null> {
@@ -76,11 +79,9 @@ export async function apiUpdateProfile(updates: {
   avatar_url?: string;
   default_surface?: string;
 }): Promise<AuthUser> {
-  const BACKEND = process.env.NEXT_PUBLIC_AUTH_URL ?? 'http://localhost:8000';
-  const res = await fetch(`${BACKEND}/users/me`, {
+  const res = await fetch('/api/auth/me', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify(updates),
   });
   if (!res.ok) throw new Error('Failed to update profile');
