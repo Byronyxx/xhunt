@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { Users, ChevronDown, Shield } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import type { DbUserProfile } from '@/lib/supabase/types';
 import { cn } from '@/lib/cn';
 
@@ -22,50 +21,28 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
 
-  const supabase = createClient();
-
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('tenant_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.tenant_id) return;
-
-      const [usersRes, progressRes] = await Promise.all([
-        supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('tenant_id', profile.tenant_id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('mission_progress')
-          .select('user_id')
-          .eq('tenant_id', profile.tenant_id)
-          .not('completed_at', 'is', null),
-      ]);
-
-      setUsers(usersRes.data ?? []);
-
-      const counts: Record<string, number> = {};
-      for (const row of (progressRes.data ?? [])) {
-        counts[row.user_id] = (counts[row.user_id] ?? 0) + 1;
+      const res = await fetch('/api/admin/users');
+      if (!res.ok) {
+        setLoading(false);
+        return;
       }
-      setCompletedCounts(counts);
-
+      const { users, completedCounts } = await res.json();
+      setUsers(users ?? []);
+      setCompletedCounts(completedCounts ?? {});
       setLoading(false);
     }
     load();
-  }, [supabase]);
+  }, []);
 
   async function updateRole(userId: string, role: string) {
     setUpdating(userId);
-    await supabase.from('user_profiles').update({ role }).eq('id', userId);
+    await fetch(`/api/workspace/settings/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role }),
+    });
     setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, role: role as DbUserProfile['role'] } : u));
     setUpdating(null);
   }
