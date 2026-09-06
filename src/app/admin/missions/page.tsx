@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Target, Pencil, Trash2, Filter, Sparkles, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 import type { DbMission } from '@/lib/supabase/types';
 import { cn } from '@/lib/cn';
 
@@ -30,27 +29,18 @@ export default function AdminMissionsPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
 
-  const supabase = createClient();
-
   async function loadMissions() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('tenant_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.tenant_id) return;
-
-    const { data } = await supabase
-      .from('missions')
-      .select('*')
-      .eq('tenant_id', profile.tenant_id)
-      .order('created_at', { ascending: false });
-
-    setMissions(data ?? []);
+    try {
+      const res = await fetch('/api/admin/missions');
+      const json = await res.json();
+      if (!res.ok) {
+        setLoading(false);
+        return;
+      }
+      setMissions(json.missions ?? []);
+    } catch {
+      // leave missions as-is on network failure
+    }
     setLoading(false);
   }
 
@@ -76,8 +66,18 @@ export default function AdminMissionsPage() {
   async function deleteMission(id: string) {
     if (!confirm('Delete this mission? This cannot be undone.')) return;
     setDeleting(id);
-    await supabase.from('missions').delete().eq('id', id);
-    setMissions((prev) => prev.filter((m) => m.id !== id));
+    try {
+      const res = await fetch(`/api/admin/missions/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error ?? 'Delete failed');
+        setDeleting(null);
+        return;
+      }
+      setMissions((prev) => prev.filter((m) => m.id !== id));
+    } catch {
+      alert('Delete request failed — is the server running?');
+    }
     setDeleting(null);
   }
 
