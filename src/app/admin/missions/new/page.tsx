@@ -7,7 +7,6 @@ import {
   ArrowLeft, Sparkles, Plus, Trash2, GripVertical,
   Loader2, Check, AlertCircle, ChevronDown, Send
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import type { DbStep, MissionStatus } from '@/lib/supabase/types';
 import type { MissionArchitectInput } from '@/lib/agents/types';
@@ -29,7 +28,6 @@ function newStep(): DbStep {
 
 export default function NewMissionPage() {
   const router = useRouter();
-  const supabase = createClient();
 
   // Mode
   const [mode, setMode] = useState<Mode>('ai');
@@ -100,39 +98,33 @@ export default function NewMissionPage() {
     setSaveError('');
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      const { data: profile } = await supabase.from('user_profiles').select('tenant_id').eq('id', user.id).single();
-      if (!profile?.tenant_id) throw new Error('No tenant');
-
       const tags = tagsInput.split(',').map((t) => t.trim()).filter(Boolean);
 
-      const { data: mission, error: insertErr } = await supabase.from('missions').insert({
-        tenant_id: profile.tenant_id,
-        created_by: user.id,
-        title, story_context: storyContext || null, difficulty,
-        estimated_time: estimatedTime || null,
-        steps, reward: reward || '', tags, status: 'draft', is_public: false,
-      }).select().single();
-
-      if (insertErr) throw insertErr;
-
-      // Create approval request
-      await supabase.from('mission_approvals').insert({
-        mission_id: mission.id,
-        tenant_id: profile.tenant_id,
-        status: 'pending',
+      const createRes = await fetch('/api/admin/missions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          story_context: storyContext || null,
+          difficulty,
+          estimated_time: estimatedTime || null,
+          steps,
+          reward: reward || '',
+          tags,
+          status: 'draft',
+          is_public: false,
+        }),
       });
+      const createData = await createRes.json();
+      if (!createRes.ok) throw new Error(createData.error || 'Failed to create mission');
 
-      // Audit log
-      await supabase.from('audit_log').insert({
-        tenant_id: profile.tenant_id,
-        user_id: user.id,
-        action: 'mission.publish',
-        resource_type: 'mission',
-        resource_id: mission.id,
-        metadata: { action: 'submitted_for_review' },
+      const reviewRes = await fetch(`/api/admin/missions/${createData.mission.id}/review`, {
+        method: 'POST',
       });
+      if (!reviewRes.ok) {
+        const reviewData = await reviewRes.json().catch(() => ({}));
+        throw new Error(reviewData.error || 'Failed to submit for review');
+      }
 
       setSaved(true);
       setTimeout(() => router.push('/admin/governance'), 1000);
@@ -160,34 +152,25 @@ export default function NewMissionPage() {
     setSaveError('');
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('tenant_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.tenant_id) throw new Error('No tenant');
-
       const tags = tagsInput.split(',').map((t) => t.trim()).filter(Boolean);
 
-      const { error } = await supabase.from('missions').insert({
-        tenant_id: profile.tenant_id,
-        created_by: user.id,
-        title,
-        story_context: storyContext || null,
-        difficulty,
-        estimated_time: estimatedTime || null,
-        steps,
-        reward: reward || '',
-        tags,
-        status,
-        is_public: false,
+      const res = await fetch('/api/admin/missions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          story_context: storyContext || null,
+          difficulty,
+          estimated_time: estimatedTime || null,
+          steps,
+          reward: reward || '',
+          tags,
+          status,
+          is_public: false,
+        }),
       });
-
-      if (error) throw error;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
 
       setSaved(true);
       setTimeout(() => router.push('/admin/missions'), 1000);
