@@ -9,7 +9,6 @@ import {
   Building2, Tag, DollarSign, Sparkles, Filter, RefreshCw,
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { IMPACT_CATEGORIES, SDG_META } from '@/lib/missionCategories';
 
@@ -126,7 +125,6 @@ function EditDrawer({
   onClose:   () => void;
   onSaved:   () => void;
 }) {
-  const supabase = createClient();
   const [form,    setForm]    = useState({ ...BLANK_FORM, ...{
     tagline:         listing?.tagline         ?? '',
     highlight:       listing?.highlight       ?? '',
@@ -154,13 +152,20 @@ function EditDrawer({
       sdg_goals:       form.sdg_goals,
       required_skills: form.required_skills,
       status:          form.status,
-      published_at:    form.status === 'active' ? new Date().toISOString() : null,
     };
 
     if (listing?.id) {
-      await supabase.from('marketplace_listings').update(payload).eq('id', listing.id);
+      await fetch(`/api/workspace/marketplace/listings/${listing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
     } else {
-      await supabase.from('marketplace_listings').insert(payload);
+      await fetch('/api/workspace/marketplace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
     }
     setSaving(false);
     onSaved();
@@ -374,12 +379,15 @@ function ApplicationDrawer({
   onClose:      () => void;
   onUpdated:    () => void;
 }) {
-  const supabase = createClient();
   const [updating, setUpdating] = useState<string | null>(null);
 
   async function setStatus(appId: string, status: Application['status']) {
     setUpdating(appId);
-    await supabase.from('marketplace_applications').update({ status }).eq('id', appId);
+    await fetch(`/api/workspace/marketplace/applications/${appId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
     setUpdating(null);
     onUpdated();
   }
@@ -472,8 +480,6 @@ function ApplicationDrawer({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function WorkspaceMarketplacePage() {
-  const supabase = createClient();
-
   const [tab,          setTab]          = useState<Tab>('listings');
   const [listings,     setListings]     = useState<Listing[]>([]);
   const [missions,     setMissions]     = useState<Mission[]>([]);
@@ -489,23 +495,15 @@ export default function WorkspaceMarketplacePage() {
 
   async function load() {
     setLoading(true);
-    const [{ data: ls }, { data: ms }, { data: apps }] = await Promise.all([
-      supabase
-        .from('marketplace_listings')
-        .select(`*, mission:missions!mission_id(id,title,difficulty,tags,reward,status)`)
-        .order('updated_at', { ascending: false }),
-      supabase
-        .from('missions')
-        .select('id,title,difficulty,tags,reward,status')
-        .eq('status', 'published'),
-      supabase
-        .from('marketplace_applications')
-        .select(`*, user_profile:user_profiles!user_id(display_name,email,avatar_url)`)
-        .order('created_at', { ascending: false }),
-    ]);
-    setListings((ls ?? []) as Listing[]);
-    setMissions((ms ?? []) as Mission[]);
-    setAllApps((apps ?? []) as Application[]);
+    try {
+      const res = await fetch('/api/workspace/marketplace');
+      const data = await res.json();
+      setListings((data.listings ?? []) as Listing[]);
+      setMissions((data.missions ?? []) as Mission[]);
+      setAllApps((data.applications ?? []) as Application[]);
+    } catch {
+      // leave state as-is on network failure
+    }
     setLoading(false);
   }
 
@@ -513,13 +511,26 @@ export default function WorkspaceMarketplacePage() {
 
   async function toggleStatus(listing: Listing) {
     const next = listing.status === 'active' ? 'paused' : 'active';
-    await supabase.from('marketplace_listings').update({ status: next }).eq('id', listing.id);
+    await fetch(`/api/workspace/marketplace/listings/${listing.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: next }),
+    });
     void load();
   }
 
   async function deleteListing(id: string) {
     if (!confirm('Remove this listing from the marketplace?')) return;
-    await supabase.from('marketplace_listings').delete().eq('id', id);
+    await fetch(`/api/workspace/marketplace/listings/${id}`, { method: 'DELETE' });
+    void load();
+  }
+
+  async function setAppStatus(appId: string, status: Application['status']) {
+    await fetch(`/api/workspace/marketplace/applications/${appId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
     void load();
   }
 
@@ -787,18 +798,12 @@ export default function WorkspaceMarketplacePage() {
                   </div>
                   {app.status === 'pending' && (
                     <div className="flex gap-2 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                      <button onClick={async () => {
-                        await supabase.from('marketplace_applications').update({ status: 'accepted' }).eq('id', app.id);
-                        void load();
-                      }}
+                      <button onClick={() => setAppStatus(app.id, 'accepted')}
                         className="flex-1 h-8 rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5"
                         style={{ background: 'rgba(34,255,170,0.08)', border: '1px solid rgba(34,255,170,0.2)', color: '#22FFAA' }}>
                         <CheckCircle2 size={12} strokeWidth={2} /> Accept
                       </button>
-                      <button onClick={async () => {
-                        await supabase.from('marketplace_applications').update({ status: 'rejected' }).eq('id', app.id);
-                        void load();
-                      }}
+                      <button onClick={() => setAppStatus(app.id, 'rejected')}
                         className="flex-1 h-8 rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5"
                         style={{ background: 'rgba(255,92,122,0.08)', border: '1px solid rgba(255,92,122,0.2)', color: '#FF5C7A' }}>
                         <XCircle size={12} strokeWidth={2} /> Decline
