@@ -8,7 +8,6 @@ import {
   Filter, X, Sparkles, CheckCircle2, Clock, MapPin, Building2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { IMPACT_CATEGORIES, SDG_META, estimateCashReward } from '@/lib/missionCategories';
 
@@ -189,30 +188,33 @@ function ApplyModal({ listingId, onClose }: { listingId: string; onClose: () => 
   const [note,      setNote]      = useState('');
   const [applying,  setApplying]  = useState(false);
   const [applied,   setApplied]   = useState(false);
-  const supabase = createClient();
+  const [applyError, setApplyError] = useState('');
 
   async function submit() {
     setApplying(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { window.location.href = '/auth/login'; return; }
+    setApplyError('');
 
-    // Get listing's mission_id
-    const { data: listing } = await supabase.from('marketplace_listings').select('mission_id,tenant_id').eq('id', listingId).single();
-    if (!listing) { setApplying(false); return; }
+    try {
+      const res = await fetch('/api/marketplace/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listingId, note: note.trim() || undefined }),
+      });
 
-    await supabase.from('marketplace_applications').insert({
-      listing_id:  listingId,
-      mission_id:  listing.mission_id,
-      user_id:     user.id,
-      tenant_id:   listing.tenant_id,
-      cover_note:  note.trim() || null,
-    }).then(() => {
-      // Increment apply_count
-      supabase.rpc('increment_listing_views', { p_listing_id: listingId }).then(() => {});
-    });
+      if (res.status === 401) {
+        window.location.href = '/auth/login';
+        return;
+      }
 
-    setApplied(true);
-    setApplying(false);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Application failed');
+
+      setApplied(true);
+    } catch (err) {
+      setApplyError(err instanceof Error ? err.message : 'Application failed');
+    } finally {
+      setApplying(false);
+    }
   }
 
   return (
@@ -260,6 +262,9 @@ function ApplyModal({ listingId, onClose }: { listingId: string; onClose: () => 
                   className="w-full px-3 py-2.5 rounded-xl text-[13px] resize-none focus:outline-none"
                   style={{ background: '#0A1226', border: '1px solid rgba(255,255,255,0.08)', color: '#F0F4FF' }} />
               </div>
+              {applyError && (
+                <p className="text-[12px] mb-3" style={{ color: '#FF5C7A' }}>{applyError}</p>
+              )}
               <button onClick={submit} disabled={applying}
                 className="w-full h-11 rounded-2xl font-bold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: '#22FFAA', color: '#050816' }}>
@@ -287,21 +292,13 @@ export default function MarketplacePage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('marketplace_listings')
-        .select(`
-          *,
-          mission:missions!mission_id (
-            id, title, story_context, difficulty, estimated_time, tags, reward,
-            tenant:tenants!tenant_id ( name, logo_url, slug )
-          )
-        `)
-        .eq('status', 'active')
-        .order('is_featured', { ascending: false })
-        .order('apply_count', { ascending: false });
-
-      setListings((data ?? []) as ListingRow[]);
+      try {
+        const res = await fetch('/api/marketplace/listings');
+        const data = await res.json();
+        setListings((data.listings ?? []) as ListingRow[]);
+      } catch {
+        // leave listings empty on network failure
+      }
       setLoading(false);
     }
     void load();
