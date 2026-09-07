@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSession } from '@/lib/auth/server';
 import { getUserTierInfo } from '@/lib/freemium';
 
 interface StartLiveBody {
@@ -11,12 +12,16 @@ interface StartLiveBody {
 }
 
 export async function POST(req: NextRequest) {
-  const sb = await createClient();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  let session;
+  try {
+    session = await requireSession(req);
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const sb = createAdminClient();
 
   // Go Live requires Pro tier
-  const tierInfo = await getUserTierInfo(user.id);
+  const tierInfo = await getUserTierInfo(session.sub);
   if (tierInfo.tier !== 'pro') {
     return NextResponse.json({
       error:    'pro_required',
@@ -55,7 +60,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await sb
     .from('live_sessions')
     .insert({
-      host_id:       user.id,
+      host_id:       session.sub,
       mission_id:    mission_id || null,
       title:         title.trim(),
       description:   description?.trim() || null,

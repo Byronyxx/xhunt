@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import {
   recordContribution,
   getUserContributions,
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   const summaryOnly = url.searchParams.get('summary') === 'true';
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     // Resolve profile id from session if not provided
     let profileId = targetUserId;
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: profile } = await supabase
       .from('user_profiles')
@@ -118,7 +118,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'contributionId and verdict are required' }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id')

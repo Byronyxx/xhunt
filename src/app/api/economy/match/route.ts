@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import {
   upsertMatchSignals,
   computeMatchesForUser,
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(url.searchParams.get('limit') ?? '10', 10);
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id')
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { action } = body;
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id, tenant_id')

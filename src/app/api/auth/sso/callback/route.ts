@@ -15,6 +15,15 @@ export const dynamic = 'force-dynamic';
  *
  * The actual cryptographic verification is delegated to Supabase Auth — this route
  * only needs to exchange the code and establish the session cookie.
+ *
+ * ⚠ FLAGGED, NOT FIXED: this route still authenticates via Supabase's own Auth
+ * service (exchangeCodeForSession / signInWithSSO), which is a completely
+ * separate identity system from the custom FastAPI + JWT auth the rest of the
+ * app now uses (see migrations 020–029). It does not set the __xhunt_session /
+ * __xhunt_at cookies the rest of the app reads, so a successful SSO login here
+ * would NOT actually log the user into xhunt as currently wired. This needs a
+ * product decision — either wire SSO through the backend's own auth service,
+ * or intentionally retire this route — rather than a mechanical fix.
  */
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);

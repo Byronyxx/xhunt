@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export type TrustDimension = 'skill' | 'reliability' | 'ethical' | 'domain';
 
@@ -50,7 +50,7 @@ export async function recordTrustEvent(
     manualDeltas?: Partial<Record<TrustDimension, number>>;
   } = {}
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const deltas = eventType === 'manual_adjustment'
     ? options.manualDeltas ?? {}
     : EVENT_DELTAS[eventType];
@@ -79,7 +79,7 @@ export async function recordTrustEvent(
 }
 
 export async function getTrustProfile(userId: string): Promise<TrustProfile | null> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from('trust_profiles')
@@ -138,7 +138,7 @@ export async function getTrustGraph(
   userId: string,
   options: { limit?: number; dimension?: TrustDimension; minScore?: number } = {}
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   let query = supabase
     .from('trust_scores')
@@ -163,7 +163,7 @@ export async function addTrustAnchor(
   signalWeight: number,
   metadata: Record<string, unknown> = {}
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from('trust_anchors')

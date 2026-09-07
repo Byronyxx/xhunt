@@ -3,7 +3,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { AGENT_SYSTEM_PROMPTS } from '@/lib/agents/prompts';
 import type { AgentFoundryInput, AgentFoundryOutput } from '@/lib/agents/types';
 import { requireTenantAgent } from '@/lib/agents/auth';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getSession } from '@/lib/auth/server';
 
 const client = new Anthropic();
 
@@ -14,10 +15,10 @@ export async function POST(req: NextRequest) {
   if (!agentAuth.ok) return agentAuth.response;
 
   // Agent Foundry is admin-only — it defines new agents, which is a governance action
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', user.id).single();
+  const supabase = createAdminClient();
+  const session = await getSession(req);
+  if (session) {
+    const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', session.sub).single();
     if (profile && !ADMIN_ROLES.has(profile.role as string)) {
       return NextResponse.json({ error: 'Agent Foundry requires admin role' }, { status: 403 });
     }

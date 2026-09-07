@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSession } from '@/lib/auth/server';
 
-export async function GET(req: Request) {
-  const sb  = await createClient();
+export async function GET(req: NextRequest) {
+  const sb  = createAdminClient();
   const url = new URL(req.url);
   const postId = url.searchParams.get('post_id');
   if (!postId) return NextResponse.json({ comments: [] });
@@ -31,10 +32,14 @@ export async function GET(req: Request) {
   return NextResponse.json({ comments });
 }
 
-export async function POST(req: Request) {
-  const sb = await createClient();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function POST(req: NextRequest) {
+  let session;
+  try {
+    session = await requireSession(req);
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const sb = createAdminClient();
 
   const { post_id, content } = await req.json() as { post_id?: string; content?: string };
   if (!post_id || !content?.trim()) {
@@ -46,7 +51,7 @@ export async function POST(req: Request) {
 
   const { data, error } = await sb
     .from('post_comments')
-    .insert({ post_id, user_id: user.id, content: content.trim() })
+    .insert({ post_id, user_id: session.sub, content: content.trim() })
     .select('id, content, created_at')
     .single();
 
@@ -55,17 +60,21 @@ export async function POST(req: Request) {
   return NextResponse.json({ comment: data });
 }
 
-export async function DELETE(req: Request) {
-  const sb = await createClient();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function DELETE(req: NextRequest) {
+  let session;
+  try {
+    session = await requireSession(req);
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const sb = createAdminClient();
 
   const { comment_id } = await req.json() as { comment_id?: string };
   if (!comment_id) return NextResponse.json({ error: 'comment_id required' }, { status: 400 });
 
   await sb.from('post_comments').delete()
     .eq('id', comment_id)
-    .eq('user_id', user.id);
+    .eq('user_id', session.sub);
 
   return NextResponse.json({ deleted: true });
 }

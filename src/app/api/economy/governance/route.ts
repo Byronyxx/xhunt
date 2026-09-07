@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { recordGovernanceAction } from '@/lib/economy/match';
 
 const ADMIN_ROLES = new Set(['platform_admin', 'tenant_admin']);
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const targetUserId = url.searchParams.get('targetUserId');
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     let query = supabase
       .from('governance_actions')
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id, role')
@@ -95,7 +95,7 @@ export async function PATCH(req: NextRequest) {
     const { actionId } = body;
     if (!actionId) return NextResponse.json({ error: 'actionId is required' }, { status: 400 });
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('id, role')

@@ -7,7 +7,6 @@ import {
   MoreHorizontal, Edit2, Trash2, Check, AlertCircle, Activity,
   Target, TrendingUp, Shield
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import type { DbAudienceSegment, DbUserProfile } from '@/lib/supabase/types';
 
@@ -34,44 +33,42 @@ export default function AudiencePage() {
   const [newDesc, setNewDesc] = useState('');
   const [saving, setSaving] = useState(false);
   const [tenantId, setTenantId] = useState<string | null>(null);
-  const supabase = createClient();
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: profile } = await supabase.from('user_profiles').select('tenant_id').eq('id', user.id).single();
-      if (!profile?.tenant_id) return;
-      setTenantId(profile.tenant_id);
-
-      const [segmentsRes, usersRes] = await Promise.all([
-        supabase.from('audience_segments').select('*').eq('tenant_id', profile.tenant_id).order('created_at', { ascending: false }),
-        supabase.from('user_profiles').select('*').eq('tenant_id', profile.tenant_id).order('created_at', { ascending: false }).limit(50),
-      ]);
-
-      setSegments(segmentsRes.data ?? []);
-      setUsers(usersRes.data ?? []);
-      setLoading(false);
+      try {
+        const res = await fetch('/api/workspace/audience');
+        if (!res.ok) return;
+        const data = await res.json();
+        setTenantId(data.tenantId ?? null);
+        setSegments(data.segments ?? []);
+        setUsers(data.users ?? []);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
-  }, [supabase]);
+  }, []);
 
   async function createSegment() {
     if (!newName.trim() || !tenantId) return;
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data } = await supabase.from('audience_segments').insert({
-      tenant_id: tenantId,
-      name: newName.trim(),
-      description: newDesc.trim() || null,
-      filters: {},
-      created_by: user?.id ?? null,
-    }).select('*').single();
-    if (data) setSegments((prev) => [data, ...prev]);
-    setNewName('');
-    setNewDesc('');
-    setCreating(false);
-    setSaving(false);
+    try {
+      const res = await fetch('/api/workspace/audience', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim(), description: newDesc.trim() || undefined }),
+      });
+      if (res.ok) {
+        const { segment } = await res.json();
+        setSegments((prev) => [segment, ...prev]);
+      }
+    } finally {
+      setNewName('');
+      setNewDesc('');
+      setCreating(false);
+      setSaving(false);
+    }
   }
 
   const filteredSegments = segments.filter((s) =>

@@ -1,32 +1,31 @@
-import { createClient } from '@/lib/supabase/server';
+import { NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSession } from '@/lib/auth/server';
 import { TRIAL_DAYS } from '@/lib/freemium';
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
-    const sb = await createClient();
-    const { data: { user } } = await sb.auth.getUser();
-
-    if (!user) {
+    let session;
+    try {
+      session = await requireSession(req);
+    } catch {
       return Response.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const sb = createAdminClient();
 
     let { data: profile } = await sb
       .from('user_profiles')
       .select('subscription_tier, trial_started_at')
-      .eq('id', user.id)
+      .eq('id', session.sub)
       .single();
 
     // Profile missing — trigger may not have fired (e.g. migrations not applied).
-    // Create a default profile via admin client so trial can proceed.
+    // Create a default profile so trial can proceed.
     if (!profile) {
-      const admin = createAdminClient();
-      const display = user.user_metadata?.full_name
-        ?? user.email?.split('@')[0]
-        ?? 'User';
-      const { data: created, error: createErr } = await admin
+      const display = session.email?.split('@')[0] ?? 'User';
+      const { data: created, error: createErr } = await sb
         .from('user_profiles')
-        .upsert({ id: user.id, display_name: display, subscription_tier: 'free' })
+        .upsert({ id: session.sub, display_name: display, subscription_tier: 'free' })
         .select('subscription_tier, trial_started_at')
         .single();
       if (createErr || !created) {
@@ -49,7 +48,7 @@ export async function POST() {
       subscription_tier: 'trial',
       trial_started_at: now.toISOString(),
       trial_ends_at: trialEndsAt.toISOString(),
-    }).eq('id', user.id);
+    }).eq('id', session.sub);
 
     if (error) throw error;
 

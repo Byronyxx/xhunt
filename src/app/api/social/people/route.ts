@@ -1,10 +1,15 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSession } from '@/lib/auth/server';
 
-export async function GET(req: Request) {
-  const sb = await createClient();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(req: NextRequest) {
+  let session;
+  try {
+    session = await requireSession(req);
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const sb = createAdminClient();
 
   const url   = new URL(req.url);
   const tab   = url.searchParams.get('tab') ?? 'discover';
@@ -22,7 +27,7 @@ export async function GET(req: Request) {
             followers_count, following_count, missions_completed
           )
         `)
-        .eq('follower_id', user.id)
+        .eq('follower_id', session.sub)
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -44,7 +49,7 @@ export async function GET(req: Request) {
             followers_count, following_count, missions_completed
           )
         `)
-        .eq('following_id', user.id)
+        .eq('following_id', session.sub)
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -60,7 +65,7 @@ export async function GET(req: Request) {
         const { data: followBack } = await sb
           .from('user_follows')
           .select('following_id')
-          .eq('follower_id', user.id)
+          .eq('follower_id', session.sub)
           .in('following_id', followerIds);
         followingSet = new Set((followBack ?? []).map((r: { following_id: string }) => r.following_id));
       }
@@ -76,7 +81,7 @@ export async function GET(req: Request) {
     let query = sb
       .from('user_profiles')
       .select('id, display_name, avatar_url, bio, xp_balance, followers_count, following_count, missions_completed')
-      .neq('id', user.id)
+      .neq('id', session.sub)
       .order('followers_count', { ascending: false })
       .limit(limit);
 
@@ -92,7 +97,7 @@ export async function GET(req: Request) {
       const { data: follows } = await sb
         .from('user_follows')
         .select('following_id')
-        .eq('follower_id', user.id)
+        .eq('follower_id', session.sub)
         .in('following_id', ids);
       followingSet = new Set((follows ?? []).map((r: { following_id: string }) => r.following_id));
     }

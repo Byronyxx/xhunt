@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { StepSchema } from '@/lib/schemas';
-import { createClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth/server';
 import { getUserTierInfo } from '@/lib/freemium';
 import groq, { modelForTier } from '@/lib/groq';
 
@@ -33,10 +33,9 @@ export async function POST(req: NextRequest) {
     // Check tier — fall back gracefully if unauthenticated
     let model = 'llama-3.1-8b-instant';
     try {
-      const sb = await createClient();
-      const { data: { user } } = await sb.auth.getUser();
-      if (user) {
-        const tierInfo = await getUserTierInfo(user.id);
+      const session = await getSession(req);
+      if (session) {
+        const tierInfo = await getUserTierInfo(session.sub);
         if (!tierInfo.canUseAI) {
           return Response.json({ adaptedStep: simplifyStep(step) });
         }

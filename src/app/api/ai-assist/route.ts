@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { requireSession } from '@/lib/auth/server';
 import { getUserTierInfo } from '@/lib/freemium';
 import { checkAndIncrementRateLimit } from '@/lib/rate-limit';
 import groq, { modelForTier } from '@/lib/groq';
@@ -16,10 +16,10 @@ const BodySchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const sb = await createClient();
-    const { data: { user } } = await sb.auth.getUser();
-
-    if (!user) {
+    let session;
+    try {
+      session = await requireSession(req);
+    } catch {
       return Response.json({ error: 'auth_required', upgradeUrl: '/auth/login' }, { status: 401 });
     }
 
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: 'Invalid request' }, { status: 400 });
     }
 
-    const tierInfo = await getUserTierInfo(user.id);
+    const tierInfo = await getUserTierInfo(session.sub);
 
     if (!tierInfo.canUseAI) {
       return Response.json({
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       }, { status: 402 });
     }
 
-    const rateLimit = await checkAndIncrementRateLimit(user.id, tierInfo.tier);
+    const rateLimit = await checkAndIncrementRateLimit(session.sub, tierInfo.tier);
     if (!rateLimit.allowed) {
       return Response.json({
         error: 'rate_limit_exceeded',

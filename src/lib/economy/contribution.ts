@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export type ContributionType =
   | 'work_output'
@@ -52,7 +52,7 @@ function generateVerificationHash(
 }
 
 export async function recordContribution(input: RecordContributionInput) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const now = new Date().toISOString();
 
   const hash = generateVerificationHash(
@@ -98,7 +98,7 @@ export async function recordContribution(input: RecordContributionInput) {
 }
 
 export async function getUserContributions(userId: string, limit = 20, offset = 0) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error, count } = await supabase
     .from('contribution_ledger')
@@ -112,7 +112,7 @@ export async function getUserContributions(userId: string, limit = 20, offset = 
 }
 
 export async function getContributionSummary(userId: string): Promise<ContributionSummary | null> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from('contribution_summaries')
@@ -140,7 +140,7 @@ export async function validateContribution(
   note?: string,
   confidencePct?: number
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from('contribution_validations')
