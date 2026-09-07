@@ -142,7 +142,7 @@ function SignInForm() {
           </form>
 
           <p style={{ fontSize: 14, color: '#8B9CC0', textAlign: 'center', marginTop: 24 }}>
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/sign-up" style={{ color: '#22FFAA', fontWeight: 700, textDecoration: 'none' }}>
               Sign up free
             </Link>
