@@ -8,7 +8,6 @@ import {
   ScrollText, MoreHorizontal
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import type { DbMissionApproval, DbAuditLog } from '@/lib/supabase/types';
 
@@ -28,30 +27,29 @@ export default function GovernancePage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'approvals' | 'audit'>('approvals');
   const [search, setSearch] = useState('');
-  const supabase = createClient();
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: profile } = await supabase.from('user_profiles').select('tenant_id').eq('id', user.id).single();
-      if (!profile?.tenant_id) return;
-
-      const [approvalsRes, logsRes] = await Promise.all([
-        supabase.from('mission_approvals').select('*').eq('tenant_id', profile.tenant_id).order('created_at', { ascending: false }).limit(30),
-        supabase.from('audit_logs').select('*').eq('tenant_id', profile.tenant_id).order('created_at', { ascending: false }).limit(50),
-      ]);
-
-      setApprovals(approvalsRes.data ?? []);
-      setLogs(logsRes.data ?? []);
+      const res = await fetch('/api/workspace/governance');
+      if (!res.ok) {
+        setLoading(false);
+        return;
+      }
+      const { approvals, logs } = await res.json();
+      setApprovals(approvals ?? []);
+      setLogs(logs ?? []);
       setLoading(false);
     }
     load();
-  }, [supabase]);
+  }, []);
 
   async function reviewApproval(id: string, status: 'approved' | 'rejected') {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('mission_approvals').update({ status, reviewer_id: user?.id }).eq('id', id);
+    const res = await fetch('/api/workspace/governance', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status }),
+    });
+    if (!res.ok) return;
     setApprovals((prev) => prev.map((a) => a.id === id ? { ...a, status } : a));
   }
 

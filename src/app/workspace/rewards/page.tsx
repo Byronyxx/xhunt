@@ -7,7 +7,6 @@ import {
   Check, X, MoreHorizontal, TrendingUp, Users, ArrowUpRight, Zap,
   ChevronRight, RefreshCw
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import type { DbRewardConfig, DbRewardEvent } from '@/lib/supabase/types';
 
@@ -32,46 +31,44 @@ export default function RewardsPage() {
   const [newType, setNewType] = useState<DbRewardConfig['type']>('points');
   const [newPoints, setNewPoints] = useState('100');
   const [saving, setSaving] = useState(false);
-  const [tenantId, setTenantId] = useState<string | null>(null);
-  const supabase = createClient();
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: profile } = await supabase.from('user_profiles').select('tenant_id').eq('id', user.id).single();
-      if (!profile?.tenant_id) return;
-      setTenantId(profile.tenant_id);
-
-      const [configsRes, eventsRes] = await Promise.all([
-        supabase.from('reward_configs').select('*').eq('tenant_id', profile.tenant_id).order('created_at', { ascending: false }),
-        supabase.from('reward_events').select('*').eq('tenant_id', profile.tenant_id).order('issued_at', { ascending: false }).limit(30),
-      ]);
-      setConfigs(configsRes.data ?? []);
-      setEvents(eventsRes.data ?? []);
+      try {
+        const res = await fetch('/api/workspace/rewards');
+        const data = await res.json();
+        setConfigs((data.configs ?? []) as DbRewardConfig[]);
+        setEvents((data.events ?? []) as DbRewardEvent[]);
+      } catch {
+        // leave state as-is on network failure
+      }
       setLoading(false);
     }
-    load();
-  }, [supabase]);
+    void load();
+  }, []);
 
   async function toggleActive(id: string, is_active: boolean) {
-    await supabase.from('reward_configs').update({ is_active: !is_active }).eq('id', id);
-    setConfigs((prev) => prev.map((c) => c.id === id ? { ...c, is_active: !is_active } : c));
+    const res = await fetch(`/api/workspace/rewards/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !is_active }),
+    });
+    if (res.ok) {
+      setConfigs((prev) => prev.map((c) => c.id === id ? { ...c, is_active: !is_active } : c));
+    }
   }
 
   async function createReward() {
-    if (!newName.trim() || !tenantId) return;
+    if (!newName.trim()) return;
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
     const value = newType === 'points' ? { points: parseInt(newPoints) || 100 } : {};
-    const { data } = await supabase.from('reward_configs').insert({
-      tenant_id: tenantId,
-      name: newName.trim(),
-      type: newType,
-      value,
-      is_active: true,
-    }).select('*').single();
-    if (data) setConfigs((prev) => [data, ...prev]);
+    const res = await fetch('/api/workspace/rewards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName.trim(), type: newType, value }),
+    });
+    const data = await res.json();
+    if (res.ok && data.config) setConfigs((prev) => [data.config, ...prev]);
     setNewName('');
     setNewPoints('100');
     setCreating(false);

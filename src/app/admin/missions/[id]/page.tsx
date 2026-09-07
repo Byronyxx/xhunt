@@ -9,7 +9,6 @@ import {
   Brain, Users, Gift, ChevronRight, ShieldCheck, Play, Pause, Archive,
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 import type { DbMission, DbStep, DbAudienceSegment, DbRewardConfig, DbMissionApproval, MissionStatus } from '@/lib/supabase/types';
 import { cn } from '@/lib/cn';
 
@@ -58,31 +57,25 @@ export default function MissionDetailPage() {
   const [pendingApproval, setPendingApproval] = useState<DbMissionApproval | null>(null);
   const [govLoading, setGovLoading] = useState(false);
 
-  const supabase = createClient();
-
   const load = useCallback(async () => {
-    const [missionRes, progressRes, segmentsRes, rewardsRes, mAudRes, mRewRes, approvalRes] = await Promise.all([
-      supabase.from('missions').select('*').eq('id', missionId).single(),
-      supabase.from('mission_progress').select('id', { count: 'exact' }).eq('mission_id', missionId).not('completed_at', 'is', null),
-      supabase.from('audience_segments').select('*').order('name'),
-      supabase.from('reward_configs').select('*').order('name'),
-      supabase.from('mission_audience').select('segment_id').eq('mission_id', missionId),
-      supabase.from('mission_rewards').select('reward_id').eq('mission_id', missionId),
-      supabase.from('mission_approvals').select('*').eq('mission_id', missionId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-    ]);
+    try {
+      const res = await fetch(`/api/admin/missions/${missionId}`);
+      if (!res.ok) { setLoading(false); return; }
+      const json = await res.json();
 
-    if (missionRes.data) {
-      setMission(missionRes.data);
-      setSteps((missionRes.data.steps as DbStep[]) ?? []);
+      setMission(json.mission ?? null);
+      setSteps((json.mission?.steps as DbStep[]) ?? []);
+      setCompletions(json.completions ?? 0);
+      setSegments((json.segments as DbAudienceSegment[]) ?? []);
+      setRewards((json.rewards as DbRewardConfig[]) ?? []);
+      setLinkedSegments(new Set((json.linkedSegmentIds ?? []) as string[]));
+      setLinkedRewards(new Set((json.linkedRewardIds ?? []) as string[]));
+      setPendingApproval(json.pendingApproval ?? null);
+    } catch {
+      // leave state as-is on network failure
     }
-    setCompletions(progressRes.count ?? 0);
-    setSegments((segmentsRes.data as DbAudienceSegment[]) ?? []);
-    setRewards((rewardsRes.data as DbRewardConfig[]) ?? []);
-    setLinkedSegments(new Set((mAudRes.data ?? []).map((r: { segment_id: string }) => r.segment_id)));
-    setLinkedRewards(new Set((mRewRes.data ?? []).map((r: { reward_id: string }) => r.reward_id)));
-    setPendingApproval(approvalRes.data ?? null);
     setLoading(false);
-  }, [missionId, supabase]);
+  }, [missionId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -108,32 +101,49 @@ export default function MissionDetailPage() {
     if (!mission) return;
     setSaving(true);
     setError('');
-    const { error } = await supabase.from('missions').update({
-      title: mission.title,
-      story_context: mission.story_context,
-      difficulty: mission.difficulty,
-      estimated_time: mission.estimated_time,
-      tags: mission.tags,
-      reward: mission.reward,
-      status: mission.status,
-      is_public: mission.is_public,
-      steps,
-      updated_at: new Date().toISOString(),
-    }).eq('id', missionId);
-    if (error) { setError(error.message); } else { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+    try {
+      const res = await fetch(`/api/admin/missions/${missionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: mission.title,
+          story_context: mission.story_context,
+          difficulty: mission.difficulty,
+          estimated_time: mission.estimated_time,
+          tags: mission.tags,
+          reward: mission.reward,
+          status: mission.status,
+          is_public: mission.is_public,
+          steps,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? 'Save failed');
+      } else {
+        setMission(json.mission ?? mission);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+      }
+    } catch {
+      setError('Save request failed — is the server running?');
+    }
     setSaving(false);
   }
 
   async function runBehavioralAnalyst() {
     setAgentLoading(true);
     try {
-      // Get step-level drop-offs from events
-      const { data: dropoffs } = await supabase.rpc('get_step_dropoffs', { p_mission_id: missionId });
-      const { data: progress } = await supabase.from('mission_progress').select('*').eq('mission_id', missionId);
+      const analyticsRes = await fetch(`/api/admin/missions/${missionId}/analytics`);
+      const analyticsJson = await analyticsRes.json();
       const res = await fetch('/api/agents/behavioral-analyst', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ missionId, progressData: progress ?? [], stepDropoffs: dropoffs ?? [] }),
+        body: JSON.stringify({
+          missionId,
+          progressData: analyticsJson.progressData ?? [],
+          stepDropoffs: analyticsJson.stepDropoffs ?? [],
+        }),
       });
       if (!res.ok) throw new Error('API error');
       setBehavioralResult(await res.json() as Record<string, unknown>);
@@ -169,23 +179,22 @@ export default function MissionDetailPage() {
 
   async function saveLinks() {
     setLinkSaving(true);
-
-    // Audience: delete all then insert selected
-    await supabase.from('mission_audience').delete().eq('mission_id', missionId);
-    if (linkedSegments.size > 0) {
-      await supabase.from('mission_audience').insert(
-        [...linkedSegments].map((sid) => ({ mission_id: missionId, segment_id: sid }))
-      );
+    try {
+      const res = await fetch(`/api/admin/missions/${missionId}/links`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          segmentIds: [...linkedSegments],
+          rewardIds: [...linkedRewards],
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error ?? 'Failed to save links');
+      }
+    } catch {
+      alert('Save links request failed — is the server running?');
     }
-
-    // Rewards: delete all then insert selected
-    await supabase.from('mission_rewards').delete().eq('mission_id', missionId);
-    if (linkedRewards.size > 0) {
-      await supabase.from('mission_rewards').insert(
-        [...linkedRewards].map((rid) => ({ mission_id: missionId, reward_id: rid }))
-      );
-    }
-
     setLinkSaving(false);
   }
 
@@ -200,12 +209,13 @@ export default function MissionDetailPage() {
   async function submitForReview() {
     if (!mission) return;
     setGovLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setGovLoading(false); return; }
-    await supabase.from('mission_approvals').insert({ mission_id: missionId, tenant_id: mission.tenant_id, status: 'pending', reviewer_id: null, notes: null });
-    await supabase.from('audit_log').insert({ tenant_id: mission.tenant_id, user_id: user.id, action: 'mission_submitted_for_review', resource_type: 'mission', resource_id: missionId, metadata: { title: mission.title } });
-    const { data } = await supabase.from('mission_approvals').select('*').eq('mission_id', missionId).order('created_at', { ascending: false }).limit(1).maybeSingle();
-    setPendingApproval(data ?? null);
+    try {
+      const res = await fetch(`/api/admin/missions/${missionId}/review`, { method: 'POST' });
+      const json = await res.json();
+      if (res.ok) setPendingApproval(json.pendingApproval ?? null);
+    } catch {
+      // silent — banner just won't update
+    }
     setGovLoading(false);
   }
 
@@ -213,13 +223,22 @@ export default function MissionDetailPage() {
     if (!mission) return;
     setGovLoading(true);
     const goPublic = newStatus === 'active' || newStatus === 'published';
-    await supabase.from('missions').update({
-      status: newStatus,
-      ...(goPublic ? { is_public: true } : {}),
-      updated_at: new Date().toISOString(),
-    }).eq('id', missionId);
-    setMission((prev) => prev ? { ...prev, status: newStatus, ...(goPublic ? { is_public: true } : {}) } : prev);
-    setSaved(false);
+    try {
+      const res = await fetch(`/api/admin/missions/${missionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: newStatus,
+          ...(goPublic ? { is_public: true } : {}),
+        }),
+      });
+      if (res.ok) {
+        setMission((prev) => prev ? { ...prev, status: newStatus, ...(goPublic ? { is_public: true } : {}) } : prev);
+        setSaved(false);
+      }
+    } catch {
+      // silent
+    }
     setGovLoading(false);
   }
 

@@ -23,11 +23,10 @@ import {
   ArrowLeft, Plus, Save, Loader2, Play, Zap, BookOpen, Search,
   Send, Users, FlaskConical, Sparkles, Check, Trash2, LayoutGrid,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import type { DbMission } from '@/lib/supabase/types';
 
-// ── Step type config ──────────────────────────────────────────────────────────
+// ── Step type config ────────────────────────────────────────────────────────────────
 
 const STEP_TYPES = [
   { type: 'action',        label: 'Action',        icon: Zap,        color: '#FFB84D', desc: 'Do something' },
@@ -44,7 +43,7 @@ const TYPE_META: Record<StepType, typeof STEP_TYPES[number]> = Object.fromEntrie
   STEP_TYPES.map((s) => [s.type, s])
 ) as Record<StepType, typeof STEP_TYPES[number]>;
 
-// ── Custom node: Start ────────────────────────────────────────────────────────
+// ── Custom node: Start ────────────────────────────────────────────────────────────────────
 
 function StartNode({ data }: NodeProps) {
   return (
@@ -62,7 +61,7 @@ function StartNode({ data }: NodeProps) {
   );
 }
 
-// ── Custom node: Step ─────────────────────────────────────────────────────────
+// ── Custom node: Step ──────────────────────────────────────────────────────────────────────
 
 function StepNode({ data, selected }: NodeProps) {
   const d = data as { stepType?: StepType; instruction?: string; stepIndex?: number; onEdit?: (d: Record<string, unknown>) => void };
@@ -103,7 +102,7 @@ function StepNode({ data, selected }: NodeProps) {
   );
 }
 
-// ── Custom node: Reward ───────────────────────────────────────────────────────
+// ── Custom node: Reward ───────────────────────────────────────────────────────────────────
 
 function RewardNode({ data }: NodeProps) {
   return (
@@ -121,7 +120,7 @@ function RewardNode({ data }: NodeProps) {
 
 const NODE_TYPES = { start: StartNode, step: StepNode, reward: RewardNode };
 
-// ── Build graph from mission steps ────────────────────────────────────────────
+// ── Build graph from mission steps ─────────────────────────────────────────────────
 
 function buildGraph(mission: DbMission): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];
@@ -179,7 +178,7 @@ function buildGraph(mission: DbMission): { nodes: Node[]; edges: Edge[] } {
   return { nodes, edges };
 }
 
-// ── Panel: Edit selected step ─────────────────────────────────────────────────
+// ── Panel: Edit selected step ──────────────────────────────────────────────────────────────────────
 
 function EditPanel({ node, onUpdate, onDelete }: {
   node: Node | null;
@@ -266,13 +265,12 @@ function EditPanel({ node, onUpdate, onDelete }: {
   );
 }
 
-// ── Main canvas page ──────────────────────────────────────────────────────────
+// ── Main canvas page ───────────────────────────────────────────────────────────────────────────
 
 export default function MissionCanvasPage() {
   const params    = useParams();
   const router    = useRouter();
   const missionId = params?.id as string;
-  const supabase  = createClient();
 
   const [mission,  setMission]  = useState<DbMission | null>(null);
   const [loading,  setLoading]  = useState(true);
@@ -285,8 +283,9 @@ export default function MissionCanvasPage() {
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from('missions').select('*').eq('id', missionId).single();
-      if (data) {
+      const res = await fetch(`/api/missions/${missionId}`);
+      if (res.ok) {
+        const { mission: data } = await res.json();
         setMission(data as DbMission);
         const { nodes: n, edges: e } = buildGraph(data as DbMission);
         setNodes(n);
@@ -359,7 +358,11 @@ export default function MissionCanvasPage() {
       success_criteria: (n.data as Record<string, unknown>).successCriteria ?? '',
     }));
 
-    await supabase.from('missions').update({ steps }).eq('id', missionId);
+    await fetch(`/api/missions/${missionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ steps }),
+    });
     setSaved(true);
     setSaving(false);
     setTimeout(() => setSaved(false), 2500);
