@@ -11,7 +11,16 @@ const onest = Onest({
   variable: '--font-onest',
 });
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://xhunt.app';
+// NEXT_PUBLIC_APP_URL is preferred when set. Vercel deployments that don't
+// set it fall back to Vercel's own auto-populated VERCEL_URL (no protocol
+// prefix included, so it's added here) — this avoids a chicken-and-egg
+// problem on a first deploy where the production URL isn't known yet.
+// `||` (not `??`) is deliberate: Vercel injects an *empty string*, not
+// undefined, for env vars added with no value, and `??` doesn't fall back
+// on that.
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://xhunt.app');
 
 export const metadata: Metadata = {
   metadataBase:    new URL(APP_URL),
