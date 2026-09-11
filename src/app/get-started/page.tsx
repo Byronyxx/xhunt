@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ArrowRight, Sparkles, Brain, Shield, Lock } from 'lucide-react';
+import { Send, ArrowRight, Sparkles, Brain, Shield, Lock, AlertCircle } from 'lucide-react';
 import { saveState, loadState, saveProfile } from '@/lib/store';
 import { createClient } from '@/lib/supabase/client';
 import type { ImpactProfile } from '@/lib/types';
@@ -199,6 +199,7 @@ export default function GetStartedPage() {
   const [profile, setProfile]         = useState<ImpactProfile | null>(null);
   const [analyzeStep, setAnalyzeStep] = useState(0);
   const [rateLimited, setRateLimited] = useState(false);
+  const [extractError, setExtractError] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
 
@@ -287,42 +288,54 @@ export default function GetStartedPage() {
 
   async function beginExtraction(history: Message[]) {
     setPhase('analyzing');
+    setExtractError('');
     try {
       const res = await fetch('/api/ai/onboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: history, mode: 'extract', userId }),
       });
-      const data = await res.json() as { profile?: ImpactProfile };
-      if (data.profile) {
-        saveProfile(data.profile);
-        const state = loadState();
-        saveState({
-          ...state,
-          user: {
-            interests: data.profile.causes,
-            goals: data.profile.motivations,
-            onboardingComplete: true,
-          },
-        });
+      const data = await res.json() as { profile?: ImpactProfile; error?: string };
 
-        // Persist to Supabase so auth-based routing works on any device
-        if (userId) {
-          await fetch('/api/auth/me', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              interests:           data.profile.causes,
-              goals:               data.profile.motivations,
-              onboarding_complete: true,
-            }),
-          }).catch(() => {});
-        }
-
-        setTimeout(() => { setProfile(data.profile!); setPhase('complete'); }, 2800);
+      // A 200 response with no profile field, or a non-2xx status, both
+      // mean extraction failed — treat both the same way instead of
+      // silently doing nothing (which used to leave this screen stuck
+      // forever with no error and no recovery).
+      if (!res.ok || !data.profile) {
+        throw new Error(data.error ?? 'Extraction failed');
       }
+
+      saveProfile(data.profile);
+      const state = loadState();
+      saveState({
+        ...state,
+        user: {
+          interests: data.profile.causes,
+          goals: data.profile.motivations,
+          onboardingComplete: true,
+        },
+      });
+
+      // Persist to Supabase so auth-based routing works on any device
+      if (userId) {
+        await fetch('/api/auth/me', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            interests:           data.profile.causes,
+            goals:               data.profile.motivations,
+            onboarding_complete: true,
+          }),
+        }).catch(() => {});
+      }
+
+      setTimeout(() => { setProfile(data.profile!); setPhase('complete'); }, 2800);
     } catch {
-      setTimeout(() => router.push('/home'), 2000);
+      setExtractError("We couldn't build your Impact DNA right now.");
+      // Give the person a moment to read the message, then let them
+      // continue to the app rather than being stuck on this screen —
+      // onboarding can be completed later.
+      setTimeout(() => router.push('/home'), 3000);
     }
   }
 
@@ -370,29 +383,42 @@ export default function GetStartedPage() {
     return (
       <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center', maxWidth: 320 }}>
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-            style={{ width: 72, height: 72, borderRadius: '50%', background: `conic-gradient(${ACCENT}, ${AI_CLR}, ${ACCENT})`, margin: '0 auto 24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 56, height: 56, borderRadius: '50%', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Brain size={24} style={{ color: ACCENT }} strokeWidth={1.5} />
-            </div>
-          </motion.div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: TXT, margin: '0 0 6px', letterSpacing: '-.02em' }}>Building your Impact DNA</h2>
-          <p style={{ fontSize: 13, color: DIM, margin: '0 0 28px' }}>Xeno is analysing your conversation…</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {steps.map((step, i) => (
-              <motion.div key={step}
-                initial={{ opacity: 0, x: -12 }} animate={{ opacity: analyzeStep >= i ? 1 : 0.2, x: 0 }}
-                transition={{ delay: i * 0.1, duration: 0.3 }}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 12,
-                  background: analyzeStep >= i ? `${ACCENT}08` : 'rgba(255,255,255,.02)',
-                  border: `1px solid ${analyzeStep >= i ? `${ACCENT}20` : 'rgba(255,255,255,.04)'}` }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: analyzeStep >= i ? ACCENT : FAINT, boxShadow: analyzeStep >= i ? `0 0 8px ${ACCENT}` : 'none' }} />
-                <span style={{ fontSize: 12, color: analyzeStep >= i ? TXT : FAINT, fontWeight: 600 }}>{step}</span>
+          {extractError ? (
+            <>
+              <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(255,92,122,0.1)',
+                border: '2px solid rgba(255,92,122,0.3)', margin: '0 auto 24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertCircle size={28} style={{ color: '#FF5C7A' }} strokeWidth={1.8} />
+              </div>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: TXT, margin: '0 0 6px', letterSpacing: '-.02em' }}>{extractError}</h2>
+              <p style={{ fontSize: 13, color: DIM, margin: 0 }}>Taking you to your home page — you can try again from your profile later.</p>
+            </>
+          ) : (
+            <>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                style={{ width: 72, height: 72, borderRadius: '50%', background: `conic-gradient(${ACCENT}, ${AI_CLR}, ${ACCENT})`, margin: '0 auto 24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Brain size={24} style={{ color: ACCENT }} strokeWidth={1.5} />
+                </div>
               </motion.div>
-            ))}
-          </div>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: TXT, margin: '0 0 6px', letterSpacing: '-.02em' }}>Building your Impact DNA</h2>
+              <p style={{ fontSize: 13, color: DIM, margin: '0 0 28px' }}>Xeno is analysing your conversation…</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {steps.map((step, i) => (
+                  <motion.div key={step}
+                    initial={{ opacity: 0, x: -12 }} animate={{ opacity: analyzeStep >= i ? 1 : 0.2, x: 0 }}
+                    transition={{ delay: i * 0.1, duration: 0.3 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 12,
+                      background: analyzeStep >= i ? `${ACCENT}08` : 'rgba(255,255,255,.02)',
+                      border: `1px solid ${analyzeStep >= i ? `${ACCENT}20` : 'rgba(255,255,255,.04)'}` }}>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: analyzeStep >= i ? ACCENT : FAINT, boxShadow: analyzeStep >= i ? `0 0 8px ${ACCENT}` : 'none' }} />
+                    <span style={{ fontSize: 12, color: analyzeStep >= i ? TXT : FAINT, fontWeight: 600 }}>{step}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
