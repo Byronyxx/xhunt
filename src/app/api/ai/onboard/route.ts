@@ -95,13 +95,16 @@ export async function POST(req: NextRequest) {
           ?? req.headers.get('x-real-ip')
           ?? 'unknown';
 
+  let mode: 'chat' | 'extract' = 'chat';
+
   try {
     const body = await req.json() as {
       messages: ChatMessage[];
       mode: 'chat' | 'extract';
       userId?: string;
     };
-    const { messages, mode } = body;
+    const { messages } = body;
+    mode = body.mode;
 
     // ── Rate limit check ──────────────────────────────────────────────────
     maybePurge();
@@ -159,6 +162,21 @@ export async function POST(req: NextRequest) {
 
   } catch (err) {
     console.error('/api/ai/onboard error:', err);
+
+    // IMPORTANT: extract mode must surface a real failure. The frontend's
+    // beginExtraction() only acts when `data.profile` is present — if this
+    // returns 200 with no `profile` field (as the old chat-mode-style
+    // fallback below does), the UI hangs on the "Building your Impact DNA"
+    // screen forever with no error and no recovery. Chat mode keeps the
+    // soft-fallback behavior since a conversational message is an
+    // acceptable degraded response there.
+    if (mode === 'extract') {
+      return Response.json(
+        { error: 'Could not generate your Impact DNA right now. Please try again.' },
+        { status: 502 }
+      );
+    }
+
     return Response.json(
       { message: "Something went wrong on my end. What are you most passionate about?" },
       { status: 200 }
