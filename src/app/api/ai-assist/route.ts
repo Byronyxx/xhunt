@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { requireSession } from '@/lib/auth/server';
 import { getUserTierInfo } from '@/lib/freemium';
 import { checkAndIncrementRateLimit } from '@/lib/rate-limit';
-import groq, { modelForTier } from '@/lib/groq';
+import llm, { modelForTier } from '@/lib/groq';
 
 const BodySchema = z.object({
   message:         z.string().min(1).max(1000),
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       }, { status: 429 });
     }
 
-    if (!process.env.GROQ_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       return Response.json({ error: 'AI service not configured' }, { status: 503 });
     }
 
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     if (stepInstruction) systemParts.push(`Current step (${stepType ?? 'action'}): "${stepInstruction}"`);
     systemParts.push('', 'Reply in 2-4 sentences. Be encouraging and practical. Guide discovery — never just give the answer.');
 
-    const completion = await groq.chat.completions.create({
+    const completion = await llm.chat.completions.create({
       model,
       max_tokens: 200,
       temperature: 0.75,

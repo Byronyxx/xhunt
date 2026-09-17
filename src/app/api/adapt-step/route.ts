@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { StepSchema } from '@/lib/schemas';
 import { getSession } from '@/lib/auth/server';
 import { getUserTierInfo } from '@/lib/freemium';
-import groq, { modelForTier } from '@/lib/groq';
+import llm, { modelForTier } from '@/lib/groq';
 
 const AdaptRequestSchema = z.object({
   huntTitle:     z.string(),
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const { huntTitle, storyContext, step, context, userInterests } = parsed.data;
 
     // Check tier — fall back gracefully if unauthenticated
-    let model = 'llama-3.1-8b-instant';
+    let model = 'gemini-2.5-flash-lite';
     try {
       const session = await getSession(req);
       if (session) {
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       }
     } catch { /* unauthenticated — continue with default */ }
 
-    if (!process.env.GROQ_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       return Response.json({ adaptedStep: simplifyStep(step) });
     }
 
@@ -77,7 +77,7 @@ Return ONLY a valid JSON object. No markdown. No explanation. Exact schema:
   "success_criteria": "..."
 }`;
 
-    const completion = await groq.chat.completions.create({
+    const completion = await llm.chat.completions.create({
       model,
       max_tokens: 500,
       temperature: 0.6,

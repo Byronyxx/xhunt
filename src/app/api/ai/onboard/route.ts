@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import groq from '@/lib/groq';
+import llm from '@/lib/groq';
 
 export const dynamic = 'force-dynamic';
 
@@ -131,8 +131,8 @@ export async function POST(req: NextRequest) {
         .map((m) => `${m.role === 'user' ? 'User' : 'Xeno'}: ${m.content}`)
         .join('\n');
 
-      const completion = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+      const completion = await llm.chat.completions.create({
+        model: 'gemini-2.5-flash',
         messages: [
           { role: 'system', content: EXTRACT_SYSTEM },
           { role: 'user', content: `Conversation transcript:\n\n${transcript}\n\nExtract the profile JSON now.` },
@@ -149,8 +149,8 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Chat mode ─────────────────────────────────────────────────────────
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+    const completion = await llm.chat.completions.create({
+      model: 'gemini-2.5-flash-lite',
       messages: [{ role: 'system', content: XENO_CHAT_SYSTEM }, ...messages],
       temperature: 0.75,
       max_tokens: 200,
