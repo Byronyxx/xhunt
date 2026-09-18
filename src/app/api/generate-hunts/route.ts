@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   try {
     const { interests, goals } = await req.json();
 
-    if (!process.env.GROQ_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       const shuffled = [...MOCK_HUNTS].sort(() => Math.random() - 0.5);
       return Response.json({ hunts: shuffled.slice(0, 6) });
     }
@@ -51,7 +51,7 @@ ${HUNT_SCHEMA_EXAMPLE}
 Generate hunts that feel emotionally alive — narratively rich, not generic checklists. Each should have a distinct voice and setting.`;
 
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'gemini-2.5-flash',
       max_tokens: 4500,
       temperature: 0.85,
       messages: [{ role: 'user', content: prompt }],
