@@ -39,28 +39,34 @@ function maybePurge() {
 
 // ── System prompts ───────────────────────────────────────────────────────────────
 
+// Must stay in this exact order — the frontend's STAGE_REPLIES/STAGE_LABELS
+// arrays (src/app/get-started/page.tsx) are hardcoded to this same 6-topic
+// order and assume exactly one question per topic, no repeats. If the model
+// deviates (asks a follow-up, revisits a topic), the frontend's quick-reply
+// chips desync from what's actually being asked. The per-turn instruction
+// below (not just this static list) is what actually enforces that.
+const TOPICS = [
+  "What they're passionate about / what gets them excited (work, hobbies, causes, anything)",
+  'Skills and strengths — professional, creative, technical, or personal',
+  'Causes or world problems they care about or want to fix',
+  'How they prefer to work — solo vs. team, quick tasks vs. long projects, pace',
+  'How much time they can realistically commit each week',
+  'What success looks like for them — money, skills, impact, recognition, purpose',
+];
+
 const XENO_CHAT_SYSTEM = `
 You are Xeno, the AI guide for X-Hunt — a platform where people earn money, build skills, and create real-world impact by completing missions for brands, NGOs, governments, startups, and social enterprises.
 
 Your role: have a warm, natural conversation to understand this person so we can match them with the best missions and opportunities.
 
-RULES:
+RULES (strict — the app's UI is hardcoded to expect exactly this pattern):
 - Ask exactly ONE question at a time. Never bundle multiple questions.
 - Keep each response to 2–3 sentences maximum.
 - Be warm, genuinely curious, and slightly playful — not clinical.
-- Always acknowledge what they said before asking the next question.
+- Always acknowledge what they said in ONE short phrase, then move to the next topic — even if their answer was brief or a short button-tap label like "Mix of both". Do NOT ask a follow-up or clarifying question on the same topic. Do NOT ask "tell me more about X" — move forward instead.
 - Never mention "profile", "extracting data", or "building a database".
 - Do NOT list all questions upfront.
-- After they've answered 6 questions, end with exactly this line and nothing else:
-  "Perfect — I have everything I need to create your Impact DNA. Just give me a moment! ✨"
-
-Ask about these topics in natural order:
-1. What they're passionate about / what gets them excited (work, hobbies, causes, anything)
-2. Skills and strengths — professional, creative, technical, or personal
-3. Causes or world problems they care about or want to fix
-4. How they prefer to work — solo vs. team, quick tasks vs. long projects, pace
-5. How much time they can realistically commit each week
-6. What success looks like for them — money, skills, impact, recognition, purpose
+- You will be told exactly which numbered topic to ask about on each turn (see the instruction appended after the conversation history) — ask ONLY that topic, never a different one, never a repeat.
 `.trim();
 
 const EXTRACT_SYSTEM = `
@@ -149,9 +155,23 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Chat mode ─────────────────────────────────────────────────────────
+    // Tell the model exactly which topic to ask next, based on how many
+    // questions the user has actually answered — rather than trusting it to
+    // track progress from raw history alone. Keeps the model's question
+    // order in lockstep with the frontend's hardcoded per-topic quick-reply
+    // chips regardless of how a given model likes to phrase follow-ups.
+    const userAnswerCount = messages.filter((m) => m.role === 'user').length;
+    const turnInstruction = userAnswerCount >= 6
+      ? 'The user has now answered all 6 questions. Respond with EXACTLY this line and nothing else: "Perfect — I have everything I need to create your Impact DNA. Just give me a moment! ✨"'
+      : `This is question ${userAnswerCount + 1} of 6. Ask ONLY about this topic, in your own warm words: "${TOPICS[userAnswerCount]}". Do not ask about any other topic. Do not repeat an earlier topic. Do not ask a follow-up or clarifying question on the previous topic, no matter how short their last answer was — acknowledge it in one short phrase, then ask this new topic.`;
+
     const completion = await llm.chat.completions.create({
       model: 'gemini-3.5-flash-lite',
-      messages: [{ role: 'system', content: XENO_CHAT_SYSTEM }, ...messages],
+      messages: [
+        { role: 'system', content: XENO_CHAT_SYSTEM },
+        ...messages,
+        { role: 'system', content: turnInstruction },
+      ],
       temperature: 0.75,
       max_tokens: 200,
     });
