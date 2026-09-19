@@ -71,7 +71,9 @@ RULES (strict — the app's UI is hardcoded to expect exactly this pattern):
 
 const EXTRACT_SYSTEM = `
 You are an NLP extraction engine. Based on a conversation transcript, extract a structured impact profile.
-Return ONLY valid JSON — no markdown fences, no explanation, no extra text.
+Return ONLY valid, complete, single-line-safe JSON — no markdown fences, no explanation, no extra text before or after the JSON object.
+Escape any double quotes, apostrophes-as-curly-quotes, or newlines that appear inside a string value so the JSON stays valid.
+Keep every string value concise — a few words — so the full object fits comfortably within the response length.
 
 JSON schema (all fields required):
 {
@@ -93,6 +95,37 @@ Rules:
 - growthAreas: 2–3 skills they'd benefit from but didn't strongly claim
 - impactScore: reflect enthusiasm and depth of answers (higher = more engaged, purpose-driven)
 `.trim();
+
+// Pulls the JSON object out of a model response defensively: strips any
+// ```json fences, then takes the substring between the first "{" and the
+// last "}" so stray preamble/postamble text around the object doesn't
+// break parsing.
+function extractJsonObject(raw: string): string {
+  const stripped = raw.trim().replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
+  const start = stripped.indexOf('{');
+  const end   = stripped.lastIndexOf('}');
+  if (start === -1 || end === -1 || end < start) return stripped;
+  return stripped.slice(start, end + 1);
+}
+
+async function callExtract(transcript: string, extraNote?: string) {
+  const completion = await llm.chat.completions.create({
+    model: 'gemini-3.5-flash',
+    messages: [
+      { role: 'system', content: EXTRACT_SYSTEM },
+      {
+        role: 'user',
+        content: `Conversation transcript:\n\n${transcript}\n\nExtract the profile JSON now.`
+          + (extraNote ? `\n\n${extraNote}` : ''),
+      },
+    ],
+    temperature: 0.2,
+    max_tokens: 1500,
+  });
+
+  const raw = completion.choices[0]?.message?.content?.trim() ?? '{}';
+  return JSON.parse(extractJsonObject(raw));
+}
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 
@@ -137,21 +170,21 @@ export async function POST(req: NextRequest) {
         .map((m) => `${m.role === 'user' ? 'User' : 'Xeno'}: ${m.content}`)
         .join('\n');
 
-      const completion = await llm.chat.completions.create({
-        model: 'gemini-3.5-flash',
-        messages: [
-          { role: 'system', content: EXTRACT_SYSTEM },
-          { role: 'user', content: `Conversation transcript:\n\n${transcript}\n\nExtract the profile JSON now.` },
-        ],
-        temperature: 0.2,
-        max_tokens: 800,
-      });
+      let profile: unknown;
+      try {
+        profile = await callExtract(transcript);
+      } catch (parseErr) {
+        // One retry: malformed/truncated JSON from an LLM is often
+        // transient. Tell it plainly what went wrong and ask again before
+        // giving up and surfacing a real error to the user.
+        console.error('[onboard/extract] first attempt failed, retrying:', parseErr);
+        profile = await callExtract(
+          transcript,
+          'Your previous response was not valid, complete JSON. Return ONLY a single valid JSON object matching the schema exactly, fully closed, with all strings properly escaped.'
+        );
+      }
 
-      const raw  = completion.choices[0]?.message?.content?.trim() ?? '{}';
-      const json = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
-      const profile = JSON.parse(json);
-
-      return Response.json({ profile: { ...profile, extractedAt: new Date().toISOString() } });
+      return Response.json({ profile: { ...(profile as object), extractedAt: new Date().toISOString() } });
     }
 
     // ── Chat mode ─────────────────────────────────────────────────────────
