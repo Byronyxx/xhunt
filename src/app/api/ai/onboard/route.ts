@@ -37,7 +37,7 @@ function maybePurge() {
   }
 }
 
-// ── System prompts ────────────────────────────────────────────────────────────
+// ── System prompts ───────────────────────────────────────────────────────────────
 
 const XENO_CHAT_SYSTEM = `
 You are Xeno, the AI guide for X-Hunt — a platform where people earn money, build skills, and create real-world impact by completing missions for brands, NGOs, governments, startups, and social enterprises.
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
         .join('\n');
 
       const completion = await llm.chat.completions.create({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.5-flash',
         messages: [
           { role: 'system', content: EXTRACT_SYSTEM },
           { role: 'user', content: `Conversation transcript:\n\n${transcript}\n\nExtract the profile JSON now.` },
@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
 
     // ── Chat mode ─────────────────────────────────────────────────────────
     const completion = await llm.chat.completions.create({
-      model: 'gemini-2.5-flash-lite',
+      model: 'gemini-3.5-flash-lite',
       messages: [{ role: 'system', content: XENO_CHAT_SYSTEM }, ...messages],
       temperature: 0.75,
       max_tokens: 200,

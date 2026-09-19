@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const { huntTitle, storyContext, step, context, userInterests } = parsed.data;
 
     // Check tier — fall back gracefully if unauthenticated
-    let model = 'gemini-2.5-flash-lite';
+    let model = 'gemini-3.5-flash-lite';
     try {
       const session = await getSession(req);
       if (session) {

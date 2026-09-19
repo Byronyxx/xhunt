@@ -51,7 +51,7 @@ ${HUNT_SCHEMA_EXAMPLE}
 Generate hunts that feel emotionally alive — narratively rich, not generic checklists. Each should have a distinct voice and setting.`;
 
     const completion = await groq.chat.completions.create({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       max_tokens: 4500,
       temperature: 0.85,
       messages: [{ role: 'user', content: prompt }],
