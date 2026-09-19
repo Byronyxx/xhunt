@@ -52,7 +52,7 @@ export interface LLMResponse {
 // ── Provider defaults ──────────────────────────────────────────────────────────
 
 const DEFAULTS: Record<LLMProvider, string> = {
-  groq:      'gemini-2.5-flash-lite',
+  groq:      'gemini-3.5-flash-lite',
   anthropic:  'claude-sonnet-4-6',
   openai:     'gpt-4o-mini',
   ollama:     process.env.OLLAMA_MODEL ?? 'llama3.2',
