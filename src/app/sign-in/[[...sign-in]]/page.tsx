@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, Suspense } from 'react';
+import { useState, useEffect, FormEvent, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -34,6 +34,13 @@ function SignInForm() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+
+  useEffect(() => {
+    if (params.get('reason') === 'idle_timeout') {
+      setInfo('You were signed out due to inactivity.');
+    }
+  }, [params]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -91,6 +98,12 @@ function SignInForm() {
 
           <h2 style={{ fontSize: 24, fontWeight: 900, color: '#F0F4FF', letterSpacing: '-0.02em', marginBottom: 4 }}>Welcome back</h2>
           <p style={{ fontSize: 14, color: '#8B9CC0', marginBottom: 32 }}>Sign in to your X-hunt account</p>
+
+          {info && (
+            <p style={{ fontSize: 13, color: '#8B9CC0', background: 'rgba(139,156,192,0.08)', border: '1px solid rgba(139,156,192,0.2)', borderRadius: 10, padding: '10px 14px', margin: '0 0 20px' }}>
+              {info}
+            </p>
+          )}
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
