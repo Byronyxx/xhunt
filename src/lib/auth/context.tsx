@@ -34,7 +34,10 @@ const CHECK_INTERVAL_MS = 30_000;
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const lastActivityRef = useRef(Date.now());
+  // Initialized to null and set inside the effect below (not here) —
+  // calling Date.now() in the render-phase ref initializer is an impure
+  // call and trips React's purity rule.
+  const lastActivityRef = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     const me = await apiMe();
@@ -61,6 +64,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) return;
 
+    // Fresh baseline every time this effect (re-)runs — e.g. on sign-in,
+    // or if `user` changes. Safe to call Date.now() here: effects run
+    // after render, not during it, so this isn't the impure-during-render
+    // case the initializer above had to avoid.
+    lastActivityRef.current = Date.now();
+
     const bumpActivity = () => {
       lastActivityRef.current = Date.now();
     };
@@ -78,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // or not at all — after the tab's been backgrounded. Comparing elapsed
     // wall-clock time on each tick sidesteps that.
     const check = () => {
-      if (Date.now() - lastActivityRef.current > thresholdMs) {
+      if (lastActivityRef.current !== null && Date.now() - lastActivityRef.current > thresholdMs) {
         signOut({ redirectUrl: '/sign-in?reason=idle_timeout' });
       }
     };
