@@ -99,31 +99,44 @@ export async function proxy(req: NextRequest) {
   let role: string | null = null;
 
   if (user) {
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('role, last_active_at')
-      .eq('id', user.id)
-      .single();
+    try {
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('role, last_active_at')
+        .eq('id', user.id)
+        .single();
 
-    if (profile) {
-      role = profile.role;
-      const lastActiveAt = profile.last_active_at ? new Date(profile.last_active_at).getTime() : 0;
-      const idleMinutes = (Date.now() - lastActiveAt) / 60_000;
-      const threshold = idleThresholdMinutes(profile.role);
+      if (error) throw error;
 
-      if (idleMinutes > threshold) {
-        // Full signOut(), not just treating the request as unauthenticated —
-        // this revokes the actual Supabase session (refresh token included),
-        // so a stale-but-still-present cookie can't just "revive" itself.
-        await supabase.auth.signOut();
-        user = null;
-        idleTimedOut = true;
-      } else if (idleMinutes * 60 > ACTIVITY_WRITE_THROTTLE_SECONDS) {
-        await supabase
-          .from('user_profiles')
-          .update({ last_active_at: new Date().toISOString() })
-          .eq('id', user.id);
+      if (profile) {
+        role = profile.role;
+        const lastActiveAt = profile.last_active_at ? new Date(profile.last_active_at).getTime() : 0;
+        const idleMinutes = (Date.now() - lastActiveAt) / 60_000;
+        const threshold = idleThresholdMinutes(profile.role);
+
+        if (idleMinutes > threshold) {
+          // Full signOut(), not just treating the request as unauthenticated —
+          // this revokes the actual Supabase session (refresh token included),
+          // so a stale-but-still-present cookie can't just "revive" itself.
+          await supabase.auth.signOut();
+          user = null;
+          idleTimedOut = true;
+        } else if (idleMinutes * 60 > ACTIVITY_WRITE_THROTTLE_SECONDS) {
+          await supabase
+            .from('user_profiles')
+            .update({ last_active_at: new Date().toISOString() })
+            .eq('id', user.id);
+        }
       }
+    } catch (err) {
+      // Fail open on the idle-timeout check specifically — a DB error here
+      // (an unapplied migration, a transient network blip, whatever) must
+      // not take down every authenticated request through this file's
+      // single choke point. The user stays signed in for this request;
+      // `role` stays null, which makes the /admin check below fail CLOSED
+      // (deny) rather than silently granting admin access on an error it
+      // can't actually verify against.
+      console.error('[proxy] idle-timeout check failed, skipping for this request:', err);
     }
   }
 
