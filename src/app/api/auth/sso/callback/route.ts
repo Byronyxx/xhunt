@@ -47,18 +47,35 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Log the SSO event for audit trail
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user) {
+      // Stamp last_active_at for this fresh session — same reasoning as
+      // /api/auth/login. Deliberately its own try/catch, separate from
+      // the audit-log insert below: that one is genuinely non-critical
+      // and allowed to fail silently, but this update is the actual fix
+      // for the idle-timeout login loop, so it must not get swallowed by
+      // an unrelated audit-insert failure.
+      try {
+        await supabase
+          .from('user_profiles')
+          .update({ last_active_at: new Date().toISOString() })
+          .eq('id', user.id);
+      } catch (err) {
+        console.error('[sso/callback] last_active_at stamp failed:', err);
+      }
+
+      // Log the SSO event for audit trail — non-critical, don't block
+      // login if this fails.
+      try {
         await supabase.from('sso_audit_log').insert({
           user_id:    user.id,
           event_type: 'sso_login',
           metadata:   { provider: user.app_metadata?.provider ?? 'unknown', next },
         });
+      } catch {
+        // Non-critical — don't block login if audit insert fails
       }
-    } catch {
-      // Non-critical — don't block login if audit insert fails
     }
 
     return NextResponse.redirect(`${origin}${next}`);
