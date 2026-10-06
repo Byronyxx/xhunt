@@ -41,10 +41,20 @@ export async function POST(req: NextRequest) {
   // timestamp from before this session even existed. Not throttled like
   // proxy.ts's own write — this always fires, exactly once, at the one
   // moment a brand-new session actually starts.
-  await admin
+  const { error: stampError } = await admin
     .from('user_profiles')
     .update({ last_active_at: new Date().toISOString() })
     .eq('id', data.user.id);
+
+  if (stampError) {
+    // This write failing silently is exactly what would cause the
+    // idle-timeout login loop this stamp exists to prevent: proxy.ts
+    // would keep reading the pre-login timestamp and re-signing the user
+    // out on their very next request, immediately after a login that
+    // otherwise looked completely successful. Logging it loudly on
+    // purpose — this must never fail without someone noticing.
+    console.error('[login] last_active_at stamp failed for user', data.user.id, stampError);
+  }
 
   return NextResponse.json({
     token: {
