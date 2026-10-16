@@ -32,6 +32,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ detail: 'Profile not found' }, { status: 404 });
   }
 
+  // Stamp last_active_at for this fresh session. Without this, a
+  // returning user whose last recorded activity is older than their
+  // idle-timeout threshold (30/45 min — see src/proxy.ts) gets signed
+  // right back out on their very next request after this login succeeds:
+  // proxy.ts's idle-check only ever looks at last_active_at, which a
+  // login alone does nothing to update, so it's still reading the
+  // timestamp from before this session even existed. Not throttled like
+  // proxy.ts's own write — this always fires, exactly once, at the one
+  // moment a brand-new session actually starts.
+  const { error: stampError } = await admin
+    .from('user_profiles')
+    .update({ last_active_at: new Date().toISOString() })
+    .eq('id', data.user.id);
+
+  if (stampError) {
+    // This write failing silently is exactly what would cause the
+    // idle-timeout login loop this stamp exists to prevent: proxy.ts
+    // would keep reading the pre-login timestamp and re-signing the user
+    // out on their very next request, immediately after a login that
+    // otherwise looked completely successful. Logging it loudly on
+    // purpose — this must never fail without someone noticing.
+    console.error('[login] last_active_at stamp failed for user', data.user.id, stampError);
+  }
+
   return NextResponse.json({
     token: {
       access_token: data.session.access_token,
