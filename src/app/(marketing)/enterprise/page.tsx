@@ -193,17 +193,17 @@ export default function EnterprisePage() {
               className="flex flex-wrap gap-3"
             >
               <Link
-                href="/contact"
+                href="/enterprise/sign-up"
                 className="flex items-center gap-2 h-13 px-7 bg-ai text-[#050816] rounded-xl text-[15px] font-bold shadow-[0_0_28px_rgba(109,93,253,0.3)] hover:shadow-[0_0_40px_rgba(109,93,253,0.45)] transition-all"
               >
-                Request Enterprise Demo
+                Create Enterprise Account
                 <ArrowRight size={16} strokeWidth={2.8} />
               </Link>
               <Link
-                href="/workspace"
+                href="/enterprise/sign-in"
                 className="flex items-center gap-2 h-13 px-6 bg-[rgba(34,255,170,0.06)] border border-[rgba(34,255,170,0.15)] text-accent rounded-xl text-[15px] font-semibold hover:bg-[rgba(34,255,170,0.1)] transition-all"
               >
-                Access Workspace
+                Enterprise Sign In
                 <ChevronRight size={15} strokeWidth={2.5} />
               </Link>
               <Link
@@ -381,10 +381,10 @@ export default function EnterprisePage() {
           </motion.p>
           <motion.div variants={fadeUp} custom={0.16} className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
-              href="/contact"
+              href="/enterprise/sign-up"
               className="flex items-center justify-center gap-2 h-13 px-8 bg-ai text-[#050816] rounded-xl text-[15px] font-bold shadow-[0_0_28px_rgba(109,93,253,0.3)] hover:shadow-[0_0_40px_rgba(109,93,253,0.45)] transition-all"
             >
-              Request Enterprise Demo
+              Create Enterprise Account
               <ArrowRight size={16} strokeWidth={2.8} />
             </Link>
             <Link

@@ -117,7 +117,7 @@ export default function Nav() {
                     </div>
                     <ArrowRight size={13} strokeWidth={2.5} className="text-accent flex-shrink-0" />
                   </Link>
-                  <Link href="/workspace" className="flex items-center gap-3 p-3 rounded-xl bg-[#6D5DFD]/5 hover:bg-[#6D5DFD]/10 border border-[#6D5DFD]/10 transition-colors group/ws mt-1">
+                  <Link href="/enterprise/sign-in" className="flex items-center gap-3 p-3 rounded-xl bg-[#6D5DFD]/5 hover:bg-[#6D5DFD]/10 border border-[#6D5DFD]/10 transition-colors group/ws mt-1">
                     <span className="text-xl flex-shrink-0 w-8 text-center">⚡</span>
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] font-semibold text-[#A99FFE] truncate">Mission Workspace</p>
@@ -190,7 +190,7 @@ export default function Nav() {
                 <span className="text-sm font-semibold text-accent">Open App</span>
                 <ArrowRight size={13} strokeWidth={2.5} className="text-accent ml-auto" />
               </Link>
-              <Link href="/workspace" className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#6D5DFD]/5 border border-[#6D5DFD]/10 transition-colors">
+              <Link href="/enterprise/sign-in" className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#6D5DFD]/5 border border-[#6D5DFD]/10 transition-colors">
                 <span className="text-lg w-6 text-center flex-shrink-0">⚡</span>
                 <span className="text-sm font-semibold text-[#A99FFE]">Mission Workspace</span>
                 <ArrowRight size={13} strokeWidth={2.5} className="text-[#6D5DFD] ml-auto" />
