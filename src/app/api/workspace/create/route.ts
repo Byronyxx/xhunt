@@ -31,6 +31,25 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
+  // Server-side guards (Enterprise Phase 2): organizations may only be created
+  // by a verified account that does not already belong to one, and an existing
+  // privileged account (e.g. platform_admin) must never be re-roled here.
+  const { data: authUser } = await admin.auth.admin.getUserById(user.sub);
+  if (!authUser?.user?.email_confirmed_at) {
+    return NextResponse.json({ error: 'Verify your email address before creating a workspace.' }, { status: 403 });
+  }
+  const { data: existing } = await admin
+    .from('user_profiles')
+    .select('tenant_id, role')
+    .eq('id', user.sub)
+    .maybeSingle();
+  if (existing?.tenant_id) {
+    return NextResponse.json({ error: 'This account already belongs to an organization.' }, { status: 409 });
+  }
+  if (existing && existing.role !== 'participant') {
+    return NextResponse.json({ error: 'This account cannot create a workspace.' }, { status: 403 });
+  }
+
   // Create tenant
   const { data: tenant, error: tenantErr } = await admin
     .from('tenants')
