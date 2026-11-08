@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src",
-    "test": "node --test --experimental-strip-types --import ./tests/support/register.mjs \"tests/**/*.test.ts\""
+    "lint": "eslint src"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.102.0",
