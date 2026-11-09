@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ArrowRight, Sparkles, Brain, Shield, Lock, AlertCircle } from 'lucide-react';
-import { saveState, loadState, saveProfile } from '@/lib/store';
-import { createClient } from '@/lib/supabase/client';
+import { saveState, loadState, saveProfile, writeOnboardingMarker } from '@/lib/store';
+import { useOnboardingResolution } from '@/lib/onboarding/use-onboarding-resolution';
+import OnboardingResolutionState from '@/components/onboarding-resolution-state';
 import type { ImpactProfile } from '@/lib/types';
 
 /* ─── design tokens ─── */
@@ -189,8 +190,8 @@ function ImpactDNAReveal({ profile, onContinue }: { profile: ImpactProfile; onCo
 /* ─── Main page ─── */
 export default function GetStartedPage() {
   const router = useRouter();
-  const [authChecked, setAuthChecked] = useState(false);
-  const [userId, setUserId]           = useState<string | null>(null);
+  const { decision, userId, retry } = useOnboardingResolution();
+  const authChecked = decision === 'redirect-onboarding';
   const [messages, setMessages]       = useState<Message[]>([]);
   const [input, setInput]             = useState('');
   const [isTyping, setIsTyping]       = useState(false);
@@ -200,43 +201,21 @@ export default function GetStartedPage() {
   const [analyzeStep, setAnalyzeStep] = useState(0);
   const [rateLimited, setRateLimited] = useState(false);
   const [extractError, setExtractError] = useState('');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [pendingProfile, setPendingProfile] = useState<ImpactProfile | null>(null);
+  const userIdRef = useRef<string | null>(null);
+  const saveInFlight = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
 
   // ── Auth guard ─────────────────────────────────────────────────────────
   useEffect(() => {
-    async function checkAuth() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace('/sign-up?next=/get-started');
-        return;
-      }
-      setUserId(user.id);
-
-      // Check if already onboarded (localStorage fast-path)
-      const state = loadState();
-      if (state.user?.onboardingComplete) {
-        router.replace('/home');
-        return;
-      }
-
-      // Also check DB in case localStorage was cleared
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('onboarding_complete')
-        .eq('id', user.id)
-        .single();
-
-      if (profile?.onboarding_complete) {
-        router.replace('/home');
-        return;
-      }
-
-      setAuthChecked(true);
-    }
-    checkAuth();
-  }, [router]);
+    userIdRef.current = userId;
+  }, [userId]);
+  useEffect(() => {
+    if (decision === 'redirect-sign-in') { router.replace('/sign-up?next=/get-started'); return; }
+    if (decision === 'render') router.replace('/home');
+  }, [decision, router]);
 
   // Seed Xeno's opening message
   useEffect(() => {
@@ -257,6 +236,38 @@ export default function GetStartedPage() {
     const t = setInterval(() => { i++; setAnalyzeStep(i); if (i >= 3) clearInterval(t); }, 900);
     return () => clearInterval(t);
   }, [phase]);
+
+  async function persistOnboarding(p: ImpactProfile, ownerId: string | null): Promise<boolean> {
+    if (!ownerId) return false;
+    try {
+      const res = await fetch('/api/auth/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          interests:           p.causes,
+          goals:               p.motivations,
+          onboarding_complete: true,
+        }),
+      });
+      if (!res.ok) return false;
+      if (userIdRef.current !== ownerId) return false; // account changed while saving
+      writeOnboardingMarker(ownerId);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function finishOnboarding(p: ImpactProfile) {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    setSaveStatus('saving');
+    const ok = await persistOnboarding(p, userId);
+    saveInFlight.current = false;
+    if (!ok) { setSaveStatus('error'); return; }
+    setSaveStatus('idle');
+    setTimeout(() => { setProfile(p); setPhase('complete'); }, 2800);
+  }
 
   async function fetchXenoReply(history: Message[]) {
     setIsTyping(true);
@@ -312,24 +323,12 @@ export default function GetStartedPage() {
         user: {
           interests: data.profile.causes,
           goals: data.profile.motivations,
-          onboardingComplete: true,
+          onboardingComplete: false,
         },
       });
-
-      // Persist to Supabase so auth-based routing works on any device
-      if (userId) {
-        await fetch('/api/auth/me', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            interests:           data.profile.causes,
-            goals:               data.profile.motivations,
-            onboarding_complete: true,
-          }),
-        }).catch(() => {});
-      }
-
-      setTimeout(() => { setProfile(data.profile!); setPhase('complete'); }, 2800);
+      // Persist to Supabase. The owner-tagged local marker is written only after the PATCH is ok.
+      setPendingProfile(data.profile);
+      void finishOnboarding(data.profile);
     } catch {
       setExtractError("We couldn't build your Impact DNA right now.");
       // Give the person a moment to read the message, then let them
@@ -367,14 +366,9 @@ export default function GetStartedPage() {
   const progressPct    = Math.min(100, Math.round((userMsgCount / 6) * 100));
   const stageLabel     = STAGE_LABELS[currentStage] ?? '';
 
-  // Loading until auth check completes
+  // Never show the onboarding chat until the account is resolved
   if (!authChecked) {
-    return (
-      <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 24, height: 24, border: `2px solid ${FAINT}`, borderTopColor: ACCENT, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <OnboardingResolutionState state={decision === 'retry' ? 'retry' : 'checking'} onRetry={retry} />;
   }
 
   /* ─── analyzing ─── */
@@ -383,7 +377,24 @@ export default function GetStartedPage() {
     return (
       <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center', maxWidth: 320 }}>
-          {extractError ? (
+          {saveStatus === 'error' ? (
+            <>
+              <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(255,92,122,0.1)',
+                border: '2px solid rgba(255,92,122,0.3)', margin: '0 auto 24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertCircle size={28} style={{ color: '#FF5C7A' }} strokeWidth={1.8} />
+              </div>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: TXT, margin: '0 0 16px', letterSpacing: '-.02em' }}>
+                {"We couldn't save your progress. Please try again."}
+              </h2>
+              <button
+                type="button"
+                onClick={() => { if (pendingProfile) void finishOnboarding(pendingProfile); }}
+                style={{ height: 42, padding: '0 24px', borderRadius: 12, border: 'none', background: ACCENT, color: BG,
+                  fontWeight: 800, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Retry
+              </button>
+            </>
+          ) : extractError ? (
             <>
               <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(255,92,122,0.1)',
                 border: '2px solid rgba(255,92,122,0.3)', margin: '0 auto 24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -13,6 +13,9 @@ import {
 import BottomNav from '@/components/BottomNav';
 import { LIQUID_GLASS_STYLE } from '@/components/LiquidGlass';
 import { loadState, saveState, loadProfile } from '@/lib/store';
+import { useOnboardingResolution } from '@/lib/onboarding/use-onboarding-resolution';
+import { redirectPathFor } from '@/lib/onboarding/resolver';
+import OnboardingResolutionState from '@/components/onboarding-resolution-state';
 import { fetchSupabaseMissions } from '@/lib/supabase/events';
 import {
   DIFF_META, MISSION_TYPE_META, ORG_TYPE_META, SDG_META,
@@ -278,6 +281,7 @@ function MissionCard({ hunt, done, locked, profile, index }: {
 /* ─── page ─── */
 export default function MissionsPage() {
   const router = useRouter();
+  const { decision, retry } = useOnboardingResolution();
   const [hunts, setHunts]         = useState<Hunt[]>([]);
   const [completedIds, setIds]    = useState<string[]>([]);
   const [streak, setStreak]       = useState(0);
@@ -287,8 +291,10 @@ export default function MissionsPage() {
   const [profile, setProfile]     = useState<ImpactProfile | null>(null);
 
   useEffect(() => {
+    const target = redirectPathFor(decision);
+    if (target) { router.replace(target); return; }
+    if (decision !== 'render') return;
     const state = loadState();
-    if (!state.user?.onboardingComplete) { router.replace('/get-started'); return; }
     setIds(state.completedHunts.map((h) => h.huntId));
     setStreak(state.streak);
     setHunts(state.hunts);
@@ -300,8 +306,11 @@ export default function MissionsPage() {
     void fetchSupabaseMissions().then((r) => {
       if (r?.length) { setHunts(r); const s = loadState(); saveState({ ...s, hunts: r }); }
     });
-  }, [router]);
+  }, [router, decision]);
 
+  if (decision !== 'render') {
+    return <OnboardingResolutionState state={decision === 'retry' ? 'retry' : 'checking'} onRetry={retry} />;
+  }
   if (!mounted) return null;
 
   const canPremium   = subStatus?.canAccessPremiumMissions ?? false;

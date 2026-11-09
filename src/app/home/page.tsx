@@ -16,6 +16,9 @@ import { ActiveMissionCard } from '@/components/home/ActiveMissionCard';
 import { AIInsightCard, type Recommendation } from '@/components/home/AIInsightCard';
 import { ActivityFeed } from '@/components/home/ActivityFeed';
 import { loadState, saveState, loadProfile } from '@/lib/store';
+import { useOnboardingResolution } from '@/lib/onboarding/use-onboarding-resolution';
+import { redirectPathFor } from '@/lib/onboarding/resolver';
+import OnboardingResolutionState from '@/components/onboarding-resolution-state';
 import { fetchSupabaseMissions } from '@/lib/supabase/events';
 import { computeMatchScore, greeting } from '@/lib/missionHelpers';
 import { loadAIConfig, DEFAULT_AI_CONFIG, type AIConfig } from '@/lib/aiConfig';
@@ -33,6 +36,7 @@ const QUICK_ACTIONS = [
 
 export default function HomePage() {
   const router = useRouter();
+  const { decision, retry } = useOnboardingResolution();
   const [hunts, setHunts]           = useState<Hunt[]>([]);
   const [completedIds, setIds]       = useState<string[]>([]);
   const [activeMissionSteps, setAMS] = useState(0);
@@ -47,8 +51,10 @@ export default function HomePage() {
   const [aiConfig, setAIConfig]      = useState<AIConfig>(DEFAULT_AI_CONFIG);
 
   useEffect(() => {
+    const target = redirectPathFor(decision);
+    if (target) { router.replace(target); return; }
+    if (decision !== 'render') return;
     const state = loadState();
-    if (!state.user?.onboardingComplete) { router.replace('/get-started'); return; }
     const completed = state.completedHunts.map(h => h.huntId);
     setIds(completed);
     setStreak(state.streak);
@@ -62,8 +68,11 @@ export default function HomePage() {
     void fetchSupabaseMissions().then(r => { if (r?.length) { setHunts(r); const s = loadState(); saveState({ ...s, hunts: r }); } });
     void fetch('/api/subscription/status').then(r => r.json()).then((d: SubStatus) => setSub(d)).catch(() => {});
     void fetch('/api/recommendations?limit=5').then(r => r.ok ? r.json() : null).then(d => { if (d?.recommendations?.length) setRecs(d.recommendations); }).catch(() => {});
-  }, [router]);
+  }, [router, decision]);
 
+  if (decision !== 'render') {
+    return <OnboardingResolutionState state={decision === 'retry' ? 'retry' : 'checking'} onRetry={retry} />;
+  }
   if (!mounted) return null;
 
   const active   = hunts.filter(h => !completedIds.includes(h.id));

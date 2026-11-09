@@ -11,6 +11,9 @@ import Link from 'next/link';
 import BottomNav from '@/components/BottomNav';
 import { LIQUID_GLASS_STYLE } from '@/components/LiquidGlass';
 import { loadState, clearState, loadProfile } from '@/lib/store';
+import { useOnboardingResolution } from '@/lib/onboarding/use-onboarding-resolution';
+import { redirectPathFor } from '@/lib/onboarding/resolver';
+import OnboardingResolutionState from '@/components/onboarding-resolution-state';
 import type { CompletedHunt, ImpactProfile } from '@/lib/types';
 
 /* ── Design tokens ─────────────────────────────────────────────────────── */
@@ -64,6 +67,7 @@ function isUUID(id: string) {
 /* ── Page ───────────────────────────────────────────────────────────────── */
 export default function ProfilePage() {
   const router = useRouter();
+  const { decision, retry } = useOnboardingResolution();
   const [interests, setInterests]       = useState<string[]>([]);
   const [completedHunts, setCompleted]  = useState<CompletedHunt[]>([]);
   const [streak, setStreak]             = useState(0);
@@ -77,8 +81,10 @@ export default function ProfilePage() {
   const [copied, setCopied]             = useState(false);
 
   useEffect(() => {
+    const target = redirectPathFor(decision);
+    if (target) { router.replace(target); return; }
+    if (decision !== 'render') return;
     const state = loadState();
-    if (!state.user?.onboardingComplete) { router.replace('/get-started'); return; }
     setInterests(state.user?.interests ?? []);
     setCompleted(state.completedHunts);
     setStreak(state.streak);
@@ -134,8 +140,11 @@ export default function ProfilePage() {
       } catch { /* silent */ }
       setLoading(false);
     })();
-  }, [router]);
+  }, [router, decision]);
 
+  if (decision !== 'render') {
+    return <OnboardingResolutionState state={decision === 'retry' ? 'retry' : 'checking'} onRetry={retry} />;
+  }
   if (!mounted) return null;
 
   const initials   = getInitials(displayName);
