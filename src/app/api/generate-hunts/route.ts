@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { requireSession } from '@/lib/auth/server';
 import { MOCK_HUNTS } from '@/lib/mockHunts';
 import { validateHuntsArray } from '@/lib/schemas';
 import groq from '@/lib/groq';
@@ -22,6 +23,12 @@ const HUNT_SCHEMA_EXAMPLE = `{
 }`;
 
 export async function POST(req: NextRequest) {
+  try {
+    await requireSession(req);
+  } catch {
+    return Response.json({ error: 'auth_required' }, { status: 401 });
+  }
+
   try {
     const { interests, goals } = await req.json();
 
