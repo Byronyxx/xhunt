@@ -191,6 +191,9 @@ body {
     inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
+/* Lift content above the ::before blur/distortion and ::after highlight layers */
+.liquid-glass > *, .xglass > * { position: relative; z-index: 2; }
+
 /* Hover lift */
 .liquid-glass:hover,
 .xglass:hover {
