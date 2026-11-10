@@ -166,7 +166,7 @@ export default function ChatPage() {
   // Auth
   useEffect(() => {
     createClient().auth.getUser().then(({ data }) => {
-      if (!data.user) { router.replace(`/auth/login?next=/messages/${conversationId}`); return; }
+      if (!data.user) { router.replace(`/sign-in?redirect_url=${encodeURIComponent(`/messages/${conversationId}`)}`); return; }
       setUserId(data.user.id);
     });
   }, [conversationId, router]);

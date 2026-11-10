@@ -26,6 +26,7 @@ const PROTECTED_PATTERNS = [
   /^\/workspace/, /^\/admin/,
   /^\/home/, /^\/explore/, /^\/missions/, /^\/messages/, /^\/profile/,
   /^\/hunt/, /^\/active/, /^\/complete/, /^\/live/, /^\/people/, /^\/rewards/,
+  /^\/settings(\/|$)/,
 ];
 
 const ADMIN_ROLES = new Set(['platform_admin', 'tenant_admin']);

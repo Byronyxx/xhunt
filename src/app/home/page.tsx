@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { PRICING_ENABLED } from '@/lib/pricing';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell, Compass, Zap, X, ArrowUpRight, ArrowRight,
@@ -200,7 +201,7 @@ export default function HomePage() {
 
         {/* Freemium nudge */}
         <AnimatePresence>
-          {subStatus && !subStatus.canUseAI && !subStatus.hasUsedTrial && !nudgeDismissed && (
+          {PRICING_ENABLED && subStatus && !subStatus.canUseAI && !subStatus.hasUsedTrial && !nudgeDismissed && (
             <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }}
               style={{ margin: '16px 24px 0', borderRadius: 16, background: `${t.ai}0D`, border: `1px solid ${t.ai}28`, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <Sparkles size={15} strokeWidth={2} style={{ color: t.ai, flexShrink: 0 }} />

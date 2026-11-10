@@ -35,7 +35,7 @@ export default function OnboardPage() {
     async function checkAuth() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.replace('/auth/login'); return; }
+      if (!user) { router.replace('/sign-in?redirect_url=%2Fonboard'); return; }
       const { data: profile } = await supabase.from('user_profiles').select('tenant_id, onboarding_complete').eq('id', user.id).single();
       if (profile?.tenant_id && profile?.onboarding_complete) { router.replace('/workspace'); return; }
       setMounted(true);

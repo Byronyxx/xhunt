@@ -9,6 +9,7 @@ import {
   Lock,
 } from 'lucide-react';
 import Link from 'next/link';
+import { PRICING_ENABLED } from '@/lib/pricing';
 import { createClient } from '@/lib/supabase/client';
 
 const T = {
@@ -186,7 +187,7 @@ export default function LiveSessionPage() {
           This is a Pro-only live session hosted by <span style={{ color: T.txt }}>{session.host.display_name}</span>.<br />
           Upgrade to Pro to watch and participate.
         </p>
-        <Link
+        {PRICING_ENABLED && <Link
           href="/upgrade"
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -196,7 +197,7 @@ export default function LiveSessionPage() {
           }}
         >
           <Lock size={16} /> Upgrade to Pro
-        </Link>
+        </Link>}
         <br />
         <Link href="/timeline" style={{ color: T.dim, fontSize: 13 }}>← Back to Timeline</Link>
       </main>

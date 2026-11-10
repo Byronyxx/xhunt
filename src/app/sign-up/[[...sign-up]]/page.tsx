@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { apiRegister } from '@/lib/auth/api';
 import { useAuth } from '@/lib/auth/context';
+import { bindLocalDataToUser } from '@/lib/local-ownership';
 
 const INPUT_STYLE: React.CSSProperties = {
   width: '100%', padding: '12px 14px',
@@ -50,6 +51,7 @@ function SignUpForm() {
         return;
       }
       setUser(result);
+      bindLocalDataToUser(result.id);
       router.push('/get-started');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed');

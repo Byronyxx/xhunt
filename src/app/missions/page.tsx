@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { PRICING_ENABLED } from '@/lib/pricing';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -264,6 +265,10 @@ function MissionCard({ hunt, done, locked, profile, index }: {
             <CheckCircle2 size={14} strokeWidth={2.5} style={{ color: ACCENT }} />
             <span style={{ fontSize: 12.5, fontWeight: 700, color: ACCENT }}>Completed · View Portfolio</span>
           </Link>
+        ) : locked && !PRICING_ENABLED ? (
+          <div data-testid="premium-locked" style={{ height: 44, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: `${AI_CLR}0A`, border: `1px solid ${AI_CLR}22`, color: AI_CLR, fontSize: 13, fontWeight: 700 }}>
+            <Sparkles size={13} strokeWidth={2.5} /> Premium mission
+          </div>
         ) : locked ? (
           <Link href="/upgrade" style={{ height: 44, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: `${AI_CLR}0A`, border: `1px solid ${AI_CLR}22`, color: AI_CLR, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
             <Sparkles size={13} strokeWidth={2.5} /> Unlock with Trial
@@ -325,6 +330,7 @@ export default function MissionsPage() {
 
   function handleClick(hunt: Hunt) {
     const locked = isPremium(hunt) && !canPremium && !completedIds.includes(hunt.id);
+    if (locked && !PRICING_ENABLED) return;
     router.push(locked ? '/upgrade' : `/hunt/${hunt.id}`);
   }
 
@@ -341,10 +347,10 @@ export default function MissionsPage() {
               style={{ borderRadius: 14, padding: '10px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, background: `${WARN}0A`, border: `1px solid ${WARN}22` }}>
               <span>⏳</span>
               <p style={{ margin: 0, fontSize: 12, color: WARN, fontWeight: 600 }}>Trial ends in {subStatus.trialDaysLeft} day{subStatus.trialDaysLeft !== 1 ? 's' : ''}</p>
-              <button onClick={() => router.push('/upgrade')} style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: WARN, background: `${WARN}18`, border: 'none', padding: '4px 10px', borderRadius: 999, cursor: 'pointer' }}>Upgrade</button>
+              {PRICING_ENABLED && <button onClick={() => router.push('/upgrade')} style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: WARN, background: `${WARN}18`, border: 'none', padding: '4px 10px', borderRadius: 999, cursor: 'pointer' }}>Upgrade</button>}
             </motion.div>
           )}
-          {subStatus && !subStatus.canAccessPremiumMissions && !subStatus.hasUsedTrial && (
+          {PRICING_ENABLED && subStatus && !subStatus.canAccessPremiumMissions && !subStatus.hasUsedTrial && (
             <motion.button initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} onClick={() => router.push('/upgrade')}
               style={{ width: '100%', borderRadius: 14, padding: '10px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, background: `${AI_CLR}0A`, border: `1px solid ${AI_CLR}22`, cursor: 'pointer', textAlign: 'left' }}>
               <Sparkles size={15} style={{ color: AI_CLR }} strokeWidth={2} />

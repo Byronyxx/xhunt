@@ -200,7 +200,7 @@ export default function OnboardingSplash({ open, onClose }: OnboardingSplashProp
                   Create Free Account <ArrowRight size={16} strokeWidth={2.8} />
                 </Link>
                 <Link
-                  href="/auth/login?next=/get-started"
+                  href="/sign-in?redirect_url=%2Fget-started"
                   style={{
                     width: '100%', height: 44,
                     background: 'rgba(255,255,255,0.04)',

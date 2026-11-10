@@ -70,6 +70,25 @@ export async function apiMe(): Promise<AuthUser | null> {
   }
 }
 
+/**
+ * Like apiMe, but tells a definite "signed out" (HTTP 401) apart from
+ * "unknown" (network error, aborted request, 5xx, 404), so callers never
+ * treat a dropped request as a sign-out.
+ */
+export async function apiMeWithStatus(): Promise<
+  { status: 'signed-in'; user: AuthUser } | { status: 'signed-out' } | { status: 'unknown' }
+> {
+  try {
+    const res = await fetch('/api/auth/me', { cache: 'no-store' });
+    if (res.status === 401) return { status: 'signed-out' };
+    if (!res.ok) return { status: 'unknown' };
+    const data = await res.json();
+    return { status: 'signed-in', user: mapUser(data) };
+  } catch {
+    return { status: 'unknown' };
+  }
+}
+
 export async function apiLogout(): Promise<void> {
   await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
 }

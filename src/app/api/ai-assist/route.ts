@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     try {
       session = await requireSession(req);
     } catch {
-      return Response.json({ error: 'auth_required', upgradeUrl: '/auth/login' }, { status: 401 });
+      return Response.json({ error: 'auth_required', upgradeUrl: '/sign-in' }, { status: 401 });
     }
 
     const body = await req.json();

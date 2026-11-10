@@ -2,8 +2,10 @@ import { NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireSession } from '@/lib/auth/server';
 import { TRIAL_DAYS } from '@/lib/freemium';
+import { PRICING_ENABLED, pricingDisabledResponse } from '@/lib/pricing';
 
 export async function POST(req: NextRequest) {
+  if (!PRICING_ENABLED) return pricingDisabledResponse();
   try {
     let session;
     try {

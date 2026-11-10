@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Check, Sparkles, Zap, Shield, Star, Loader2, ArrowRight, Clock } from 'lucide-react';
+import { PRICING_ENABLED } from '@/lib/pricing';
 
 interface TierInfo {
   tier: 'free' | 'trial' | 'pro';
@@ -63,22 +64,24 @@ function UpgradePageInner() {
   }, []);
 
   async function handleUpgrade() {
+    if (!PRICING_ENABLED) return;
     setUpgrading(true); setError('');
     try {
       const res  = await fetch('/api/stripe/checkout', { method: 'POST' });
       const data = await res.json() as { url?: string; error?: string };
-      if (!res.ok) { if (res.status === 401) { router.push('/auth/login?next=/upgrade'); return; } setError(data.error ?? 'Something went wrong.'); return; }
+      if (!res.ok) { if (res.status === 401) { router.push('/sign-in?redirect_url=%2Fupgrade'); return; } setError(data.error ?? 'Something went wrong.'); return; }
       if (data.url) window.location.href = data.url;
     } catch { setError('Network error — please try again.'); }
     finally { setUpgrading(false); }
   }
 
   async function startTrial() {
+    if (!PRICING_ENABLED) return;
     setStarting(true); setError('');
     try {
       const res  = await fetch('/api/trial/start', { method: 'POST' });
       const data = await res.json();
-      if (!res.ok) { if (res.status === 401) { router.push('/auth/login?next=/upgrade'); return; } setError((data as { error?: string }).error ?? 'Something went wrong.'); return; }
+      if (!res.ok) { if (res.status === 401) { router.push('/sign-in?redirect_url=%2Fupgrade'); return; } setError((data as { error?: string }).error ?? 'Something went wrong.'); return; }
       setTierInfo((prev) => prev ? { ...prev, tier: 'trial', isTrialActive: true, trialDaysLeft: 14, canUseAI: true } : prev);
     } catch { setError('Network error — please try again.'); }
     finally { setStarting(false); }
@@ -190,7 +193,7 @@ function UpgradePageInner() {
 
                   {error && <p style={{ fontSize: 12, color: '#FF5C7A', margin: '10px 0 0' }}>{error}</p>}
 
-                  {!isTrial && !isPro && (
+                  {PRICING_ENABLED && !isTrial && !isPro && (
                     <motion.button whileTap={{ scale: 0.98 }} onClick={() => void startTrial()} disabled={starting || !!tierInfo?.hasUsedTrial}
                       style={{ width: '100%', height: 48, borderRadius: 999, cursor: tierInfo?.hasUsedTrial ? 'not-allowed' : 'pointer', marginTop: 16, fontFamily: 'inherit', fontSize: 14, fontWeight: 700, background: tierInfo?.hasUsedTrial ? T.elev : 'rgba(109,93,253,.15)', color: tierInfo?.hasUsedTrial ? T.dim : T.ai, border: `1px solid ${tierInfo?.hasUsedTrial ? T.line : 'rgba(109,93,253,.25)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                       {starting ? <Loader2 size={17} strokeWidth={2} style={{ animation: 'spin 0.9s linear infinite' }} /> : tierInfo?.hasUsedTrial ? 'Trial already used' : 'Start Free Trial'}
@@ -220,7 +223,9 @@ function UpgradePageInner() {
                   <p style={{ margin: '0 0 16px', fontSize: 11, color: T.dim }}>Full AI power, no limits</p>
                   {PRO_FEATURES.map((f) => <FeatureRow key={f} text={f} included />)}
 
-                  {!isPro ? (
+                  {!isPro && !PRICING_ENABLED ? (
+                    <p data-testid="pricing-coming-soon" style={{ margin: '16px 0 0', fontSize: 15, color: T.dim }}>Plans are coming soon.</p>
+                  ) : !isPro ? (
                     <motion.button whileTap={{ scale: 0.98 }} onClick={() => void handleUpgrade()} disabled={upgrading}
                       style={{ width: '100%', height: 50, borderRadius: 999, border: 0, cursor: upgrading ? 'default' : 'pointer', marginTop: 16, fontFamily: 'inherit', fontSize: 14, fontWeight: 700, background: T.green, color: '#050816', boxShadow: '0 4px 20px rgba(34,255,170,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: upgrading ? 0.7 : 1 }}>
                       {upgrading ? <Loader2 size={17} strokeWidth={2} style={{ animation: 'spin 0.9s linear infinite' }} /> : <><Shield size={16} strokeWidth={2.5} />Upgrade to Pro</>}

@@ -3,10 +3,12 @@ import { NextRequest } from 'next/server';
 import { env } from '@/lib/env';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireSession } from '@/lib/auth/server';
+import { PRICING_ENABLED, pricingDisabledResponse } from '@/lib/pricing';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  if (!PRICING_ENABLED) return pricingDisabledResponse();
   if (!env.stripeSecretKey || env.stripeSecretKey.includes('REPLACE_ME')) {
     return Response.json({ error: 'Payment system not yet configured' }, { status: 503 });
   }

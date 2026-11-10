@@ -8,9 +8,10 @@ import {
   Shield, Zap, Star, TrendingUp, Brain, Globe, Copy, Check,
 } from 'lucide-react';
 import Link from 'next/link';
+import { PRICING_ENABLED } from '@/lib/pricing';
 import BottomNav from '@/components/BottomNav';
 import { LIQUID_GLASS_STYLE } from '@/components/LiquidGlass';
-import { loadState, clearState, loadProfile } from '@/lib/store';
+import { loadState, loadProfile } from '@/lib/store';
 import { useOnboardingResolution } from '@/lib/onboarding/use-onboarding-resolution';
 import { redirectPathFor } from '@/lib/onboarding/resolver';
 import OnboardingResolutionState from '@/components/onboarding-resolution-state';
@@ -183,7 +184,9 @@ export default function ProfilePage() {
                   : <Copy size={15} strokeWidth={1.8} style={{ color: ACCENT }} />}
               </button>
               <button
-                onClick={() => { if (confirm('Reset all data and start fresh?')) { clearState(); router.replace('/'); } }}
+                onClick={() => router.push('/settings')}
+                aria-label="Settings"
+                data-testid="profile-settings-gear"
                 style={{ width: 38, height: 38, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', cursor: 'pointer' }}>
                 <Settings size={16} strokeWidth={1.8} style={{ color: DIM }} />
               </button>
@@ -325,7 +328,7 @@ export default function ProfilePage() {
                 <p style={{ margin: '0 0 1px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: FAINT }}>Current Plan</p>
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: TXT }}>{subStatus.tier === 'pro' ? 'Pro' : subStatus.isTrialActive ? `Trial · ${subStatus.trialDaysLeft}d left` : 'Free'}</p>
               </div>
-              {subStatus.tier !== 'pro' && (
+              {PRICING_ENABLED && subStatus.tier !== 'pro' && (
                 <button onClick={() => router.push('/upgrade')} style={{ fontSize: 12, fontWeight: 700, color: subStatus.isTrialActive ? AI : ACCENT, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, padding: 0, flexShrink: 0 }}>
                   {subStatus.isTrialActive ? 'Upgrade' : subStatus.hasUsedTrial ? 'Go Pro' : 'Try Free'} <ArrowRight size={12} strokeWidth={2.5} />
                 </button>

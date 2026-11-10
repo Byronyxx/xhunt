@@ -8,6 +8,7 @@ import type { Metadata } from 'next';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { apiLogin } from '@/lib/auth/api';
 import { useAuth } from '@/lib/auth/context';
+import { bindLocalDataToUser } from '@/lib/local-ownership';
 import { safeRedirectPath } from '@/lib/safe-redirect';
 
 const INPUT_STYLE: React.CSSProperties = {
@@ -33,7 +34,7 @@ function SignInForm() {
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => (params.get('error') ?? '').slice(0, 200));
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -42,6 +43,7 @@ function SignInForm() {
     try {
       const user = await apiLogin({ email, password });
       setUser(user);
+      bindLocalDataToUser(user.id);
       const target = safeRedirectPath(
         params.get('redirect_url'),
         `/${user.surface}`,

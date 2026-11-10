@@ -52,7 +52,7 @@ export default function MissionExecutionPage() {
     async function boot() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.replace(`/auth/login?next=/missions/${id}`); return; }
+      if (!user) { router.replace(`/sign-in?redirect_url=${encodeURIComponent(`/missions/${id}`)}`); return; }
 
       // Non-UUID IDs come from localStorage (AI-generated missions).
       // Skip Supabase and load from local state directly.

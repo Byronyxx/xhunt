@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   if (error) {
     const desc = searchParams.get('error_description') ?? error;
     return NextResponse.redirect(
-      `${origin}/auth/login?error=${encodeURIComponent(desc)}`,
+      `${origin}/sign-in?error=${encodeURIComponent(desc)}`,
     );
   }
 
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
     if (exchangeError) {
       return NextResponse.redirect(
-        `${origin}/auth/login?error=${encodeURIComponent(exchangeError.message)}`,
+        `${origin}/sign-in?error=${encodeURIComponent(exchangeError.message)}`,
       );
     }
 
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
   }
 
   // No code and no error — unexpected state, return to login
-  return NextResponse.redirect(`${origin}/auth/login`);
+  return NextResponse.redirect(`${origin}/sign-in`);
 }
 
 /**
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
   const relayState   = formData.get('RelayState')?.toString() ?? '/workspace';
 
   if (!samlResponse) {
-    return NextResponse.redirect(`${origin}/auth/login?error=Missing+SAMLResponse`);
+    return NextResponse.redirect(`${origin}/sign-in?error=Missing+SAMLResponse`);
   }
 
   // Supabase handles SAML validation internally; we initiate via the SAML sign-in URL.
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (error || !data?.url) {
-    return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(error?.message ?? 'SAML error')}`);
+    return NextResponse.redirect(`${origin}/sign-in?error=${encodeURIComponent(error?.message ?? 'SAML error')}`);
   }
 
   return NextResponse.redirect(data.url);

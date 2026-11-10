@@ -202,7 +202,7 @@ function ApplyModal({ listingId, onClose }: { listingId: string; onClose: () => 
       });
 
       if (res.status === 401) {
-        window.location.href = '/auth/login';
+        window.location.href = '/sign-in?redirect_url=%2Fmarketplace';
         return;
       }
 

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, Send, Loader2, ArrowRight } from 'lucide-react';
+import { PRICING_ENABLED } from '@/lib/pricing';
 import { useRouter } from 'next/navigation';
 
 export interface AIHuntContext {
@@ -184,6 +185,7 @@ export default function AIAssistant({ context }: Props) {
                           : 'Get 14 days of free AI step hints, mission guidance, and premium verified missions.'}
                       </p>
                     </div>
+                    {PRICING_ENABLED ? (
                     <motion.button
                       whileTap={{ scale: 0.97 }}
                       onClick={() => { setOpen(false); router.push('/upgrade'); }}
@@ -198,6 +200,11 @@ export default function AIAssistant({ context }: Props) {
                       {tierStatus.hasUsedTrial ? 'Upgrade to Pro' : 'Start 14-Day Trial'}
                       <ArrowRight size={16} strokeWidth={2.5} />
                     </motion.button>
+                    ) : (
+                      <p data-testid="ai-pricing-coming-soon" style={{ margin: 0, fontSize: 14, color: T.muted }}>
+                        Plans are coming soon.
+                      </p>
+                    )}
                   </div>
 
                 ) : (
