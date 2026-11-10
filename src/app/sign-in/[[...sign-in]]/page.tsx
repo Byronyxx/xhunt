@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, FormEvent, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { apiLogin } from '@/lib/auth/api';
 import { useAuth } from '@/lib/auth/context';
+import { safeRedirectPath } from '@/lib/safe-redirect';
 
 const INPUT_STYLE: React.CSSProperties = {
   width: '100%', padding: '12px 14px',
@@ -26,7 +27,6 @@ const LABEL_STYLE: React.CSSProperties = {
 };
 
 function SignInForm() {
-  const router = useRouter();
   const params = useSearchParams();
   const { setUser } = useAuth();
   const [email, setEmail] = useState('');
@@ -42,11 +42,17 @@ function SignInForm() {
     try {
       const user = await apiLogin({ email, password });
       setUser(user);
-      const redirectUrl = params.get('redirect_url') ?? `/${user.surface}`;
-      router.push(redirectUrl);
+      const target = safeRedirectPath(
+        params.get('redirect_url'),
+        `/${user.surface}`,
+        window.location.origin,
+      );
+      // Full page navigation on purpose: router.push() reuses the client
+      // router's cached signed-out redirect to /sign-in, so the user would
+      // never leave this page. A hard navigation refetches with the new session.
+      window.location.assign(target);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed');
-    } finally {
       setLoading(false);
     }
   }
